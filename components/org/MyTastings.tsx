@@ -119,7 +119,7 @@ export function TastingSwitcher({ current }: { current: Omit<MyTastingEntry, "se
             ))}
           </ul>
           <Link
-            href="/#create"
+            href="/new"
             className="block border-t border-line px-3 py-2.5 text-sm font-medium text-primary hover:bg-primary-soft"
           >
             + Новая дегустация

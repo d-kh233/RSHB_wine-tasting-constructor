@@ -60,7 +60,7 @@ export function ExportPanel({ adminKey, ratingsCount }: { adminKey: string; rati
         </p>
       </div>
 
-      <div className="flex flex-col gap-2 sm:flex-row">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         <Button onClick={send} loading={sending} disabled={empty}>
           Передать в рейтинг
         </Button>
@@ -111,7 +111,7 @@ function OutcomeAlert({ outcome: { result, filtered } }: { outcome: Outcome }) {
           ))}
         </ul>
       )}
-      <p className="mt-1 font-mono text-xs opacity-80">exportId: {result.exportId}</p>
+      <p className="mt-1 break-all font-mono text-xs opacity-80">exportId: {result.exportId}</p>
     </Alert>
   );
 }

@@ -4,10 +4,11 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { INVITE_CODE_LENGTH } from "@/lib/constants";
 import { Button } from "../ui/Button";
+import { cx } from "../ui/cx";
 import { Input } from "../ui/Field";
 
 /** Вход гостя по коду, если QR не сканируется: код продиктовали или написали на доске. */
-export function CodeEntry() {
+export function CodeEntry({ className }: { className?: string }) {
   const router = useRouter();
   const [code, setCode] = useState("");
   const clean = code.trim().toUpperCase();
@@ -18,7 +19,7 @@ export function CodeEntry() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="flex gap-2">
+    <form onSubmit={onSubmit} className={cx("flex gap-2", className)}>
       <Input
         value={code}
         onChange={(e) => setCode(e.target.value)}
@@ -28,7 +29,8 @@ export function CodeEntry() {
         autoCapitalize="characters"
         autoCorrect="off"
         spellCheck={false}
-        className="font-mono uppercase tracking-widest"
+        // Подсказка — обычным шрифтом: моноширинная в верхнем регистре не влезает в поле на 375px.
+        className="font-mono uppercase tracking-widest placeholder:font-sans placeholder:normal-case placeholder:tracking-normal"
       />
       <Button type="submit" variant="secondary" disabled={!clean} className="shrink-0">
         Войти

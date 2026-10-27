@@ -7,6 +7,7 @@ import type { GuestRatingDTO, GuestTastingDTO, GuestTastingWineDTO } from "@/lib
 import { SCALES } from "@/lib/scales";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
+import { Container } from "../ui/Container";
 import { Textarea } from "../ui/Field";
 import { ScaleInput } from "../ui/ScaleInput";
 import { WineCard } from "../ui/WineCard";
@@ -114,13 +115,13 @@ export function RatingForm({
         </Alert>
       )}
 
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
-        <div className="mx-auto max-w-form">
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 backdrop-blur">
+        <Container size="narrow">
           <Button size="lg" block onClick={submit} loading={submitting} disabled={value === null || !canRate}>
             {value === null ? "Выберите оценку" : "Отправить оценку"}
           </Button>
-          <p className="mt-1.5 text-center text-xs text-ink-muted">Изменить оценку после отправки нельзя</p>
-        </div>
+          <p className="mt-2 text-center text-xs text-ink-muted">Изменить оценку после отправки нельзя</p>
+        </Container>
       </div>
     </div>
   );

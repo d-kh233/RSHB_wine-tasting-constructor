@@ -3,6 +3,7 @@ import type { PublicResultsDTO } from "@/lib/dto";
 import { plural } from "@/lib/plural";
 import { formatScaleValue, formatScore100, SCALES } from "@/lib/scales";
 import { Badge } from "../ui/Badge";
+import { Container } from "../ui/Container";
 import { cx } from "../ui/cx";
 import { EmptyState } from "../ui/EmptyState";
 import { LocalDate } from "../ui/LocalDate";
@@ -16,7 +17,7 @@ export function ResultsView({ results, inviteCode }: { results: PublicResultsDTO
   const hasRatings = results.rows.some((r) => r.count > 0);
 
   return (
-    <main className="mx-auto min-h-dvh max-w-form px-4 pb-10 pt-5">
+    <Container as="main" size="narrow" className="min-h-dvh pb-10 pt-6">
       <Link
         href={`/t/${inviteCode}`}
         className="-ml-2 mb-3 inline-flex h-10 items-center rounded-md px-2 text-sm font-medium text-ink-muted hover:text-ink"
@@ -25,7 +26,7 @@ export function ResultsView({ results, inviteCode }: { results: PublicResultsDTO
       </Link>
       <header className="mb-6">
         <p className="text-xs font-medium uppercase tracking-wide text-ink-muted">Итоги · {SCALES[results.scale].label}</p>
-        <h1 className="mt-1 break-words text-2xl">{results.title}</h1>
+        <h1 className="mt-1 break-words text-title">{results.title}</h1>
         <p className="mt-1 text-sm text-ink-muted">
           {results.publishedAt && (
             <>
@@ -83,6 +84,6 @@ export function ResultsView({ results, inviteCode }: { results: PublicResultsDTO
           Народный винный рейтинг
         </Link>
       </p>
-    </main>
+    </Container>
   );
 }

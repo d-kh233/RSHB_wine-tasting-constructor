@@ -9,8 +9,9 @@
  * Редизайн = правка этого блока (+ при необходимости components/ui/).
  */
 :root {
-  /* Поверхности */
-  --color-bg: 250 247 244;
+  /* Поверхности. Фон страницы — кремовый градиент от bg к bg-deep (components/ui/Backdrop) */
+  --color-bg: 251 246 238;
+  --color-bg-deep: 244 233 217;
   --color-surface: 255 255 255;
   --color-surface-muted: 244 238 233;
   --color-line: 228 219 212;
@@ -27,6 +28,10 @@
   --color-accent: 184 141 60;
   --color-accent-soft: 249 241 224;
 
+  /* Декор: листья и лоза в иллюстрациях и узоре фона */
+  --color-leaf: 104 124 76;
+  --color-leaf-soft: 232 236 220;
+
   /* Состояния */
   --color-success: 30 122 80;
   --color-success-soft: 225 243 233;
@@ -41,15 +46,23 @@
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-serif: Georgia, Cambria, "Times New Roman", Times, serif;
 
-  /* Радиусы */
+  /* Узор фона: цвет контура и прозрачность (0.05–0.08) */
+  --pattern-color: var(--color-leaf);
+  --pattern-opacity: 0.07;
+
+  /* Радиусы: md — кнопки и поля, lg — карточки */
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 16px;
   --radius-pill: 9999px;
 
-  /* Тени */
-  --shadow-card: 0 1px 2px rgb(var(--color-ink) / 0.06), 0 2px 8px rgb(var(--color-ink) / 0.05);
-  --shadow-raised: 0 4px 16px rgb(var(--color-ink) / 0.10);
+  /*
+   * Отступы — шкала 4/8/16/24/32 (Tailwind 1/2/4/6/8). Ширина контента — components/ui/Container:
+   * max-w-6xl, поля 16px на телефоне, 24px на планшете, 32px на десктопе.
+   */
+
+  /* Тени: только у приподнятых карточек и модалок */
+  --shadow-raised: 0 1px 2px rgb(var(--color-ink) / 0.04), 0 8px 24px -6px rgb(var(--color-ink) / 0.12);
   --shadow-modal: 0 12px 40px rgb(var(--color-ink) / 0.22);
   --shadow-focus: 0 0 0 3px rgb(var(--color-primary) / 0.25);
 }
@@ -62,6 +75,8 @@
   body {
     @apply bg-bg font-sans text-ink antialiased;
     min-height: 100dvh;
+    /* Длинные слова и ссылки переносятся, а не растягивают страницу на узком экране. */
+    overflow-wrap: break-word;
   }
 
   h1,
@@ -73,5 +88,17 @@
   :focus-visible {
     outline: none;
     box-shadow: var(--shadow-focus);
+  }
+}
+
+/* Анимаций в интерфейсе почти нет; тем, кто просит меньше движения, отключаем и оставшиеся. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

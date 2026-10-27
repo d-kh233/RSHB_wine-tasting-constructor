@@ -12,7 +12,10 @@ const config: Config = {
       transparent: "transparent",
       current: "currentColor",
       inherit: "inherit",
-      bg: token("bg"),
+      bg: {
+        DEFAULT: token("bg"),
+        deep: token("bg-deep"),
+      },
       surface: {
         DEFAULT: token("surface"),
         muted: token("surface-muted"),
@@ -31,6 +34,10 @@ const config: Config = {
       accent: {
         DEFAULT: token("accent"),
         soft: token("accent-soft"),
+      },
+      leaf: {
+        DEFAULT: token("leaf"),
+        soft: token("leaf-soft"),
       },
       success: { DEFAULT: token("success"), soft: token("success-soft") },
       warning: { DEFAULT: token("warning"), soft: token("warning-soft") },
@@ -51,15 +58,18 @@ const config: Config = {
     },
     boxShadow: {
       none: "none",
-      card: "var(--shadow-card)",
       raised: "var(--shadow-raised)",
       modal: "var(--shadow-modal)",
       focus: "var(--shadow-focus)",
     },
     extend: {
       maxWidth: {
-        page: "64rem",
         form: "32rem",
+      },
+      // Заголовки плавно растут с шириной экрана: от 375px до десктопа без скачков и переполнения.
+      fontSize: {
+        display: ["clamp(2rem, 1.5rem + 2.5vw, 3rem)", { lineHeight: "1.1" }],
+        title: ["clamp(1.5rem, 1.25rem + 1.25vw, 2rem)", { lineHeight: "1.2" }],
       },
     },
   },

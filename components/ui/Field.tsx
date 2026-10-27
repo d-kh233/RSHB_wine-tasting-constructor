@@ -30,7 +30,7 @@ export function Field({
 
 // 16px шрифт в полях — iOS не зумит страницу при фокусе.
 const control =
-  "w-full rounded-md border border-line bg-surface px-3 text-base text-ink placeholder:text-ink-muted/70 " +
+  "w-full min-w-0 max-w-full rounded-md border border-line bg-surface px-3 text-base text-ink placeholder:text-ink-muted/70 " +
   "transition-colors focus:border-primary disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-ink-muted";
 
 export function Input({ className, ...rest }: InputHTMLAttributes<HTMLInputElement>) {

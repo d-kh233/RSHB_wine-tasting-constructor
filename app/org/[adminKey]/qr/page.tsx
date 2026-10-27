@@ -19,7 +19,7 @@ export default async function QrPage({ params }: { params: Promise<{ adminKey: s
 
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center gap-6 bg-surface px-4 py-8 text-center">
-      <h1 className="max-w-3xl break-words text-2xl sm:text-4xl">{tasting.title}</h1>
+      <h1 className="max-w-3xl break-words text-display">{tasting.title}</h1>
       {invite.qrSvg ? (
         <div
           className="w-full max-w-[min(80vw,70vh)] [&>svg]:h-auto [&>svg]:w-full"

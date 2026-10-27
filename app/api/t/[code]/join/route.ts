@@ -14,7 +14,7 @@ export async function POST(req: Request, { params }: Ctx) {
     const { guestId, newToken } = await guestService.join(code, displayName, await readGuestToken(code));
 
     const res = NextResponse.json({ guestId }, { status: newToken ? 201 : 200 });
-    if (newToken) res.cookies.set(guestCookieName(normalizeInviteCode(code)), newToken, guestCookieOptions());
+    if (newToken) res.cookies.set(guestCookieName(normalizeInviteCode(code)), newToken, guestCookieOptions(req));
     return res;
   });
 }

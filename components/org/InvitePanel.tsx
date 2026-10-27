@@ -27,7 +27,7 @@ export function InvitePanel({ tasting, invite }: { tasting: OrgTastingDTO; invit
         </Alert>
       )}
 
-      <div className="grid gap-4 md:grid-cols-[auto_1fr]">
+      <div className="grid gap-4 md:grid-cols-[auto_minmax(0,1fr)]">
         {invite.qrSvg && (
           <Card className="flex flex-col items-center gap-3">
             {/* SVG собран на сервере библиотекой qrcode из нашего же URL. Белый фон нужен для сканера. */}

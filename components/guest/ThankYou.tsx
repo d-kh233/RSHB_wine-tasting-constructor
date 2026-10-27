@@ -29,7 +29,7 @@ export function ThankYou({
       >
         ✓
       </div>
-      <h1 className="mt-5 text-3xl">{repeated ? "Оценка уже сохранена" : "Спасибо!"}</h1>
+      <h1 className="mt-6 text-title">{repeated ? "Оценка уже сохранена" : "Спасибо!"}</h1>
       <p className="mt-2 text-ink-muted">
         {wine.wine ? wine.wine.name : wine.label}
         {rating && (

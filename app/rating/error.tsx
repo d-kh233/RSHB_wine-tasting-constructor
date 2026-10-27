@@ -1,17 +1,18 @@
 "use client";
 
 import { Button } from "@/components/ui/Button";
+import { Container } from "@/components/ui/Container";
 import { EmptyState } from "@/components/ui/EmptyState";
 
 export default function RatingError({ reset }: { error: Error; reset: () => void }) {
   return (
-    <main className="mx-auto max-w-form px-4 py-16">
+    <Container as="main" size="narrow" className="py-16">
       <EmptyState
         icon="⚠️"
         title="Не удалось загрузить рейтинг"
         text="Проверьте интернет и попробуйте ещё раз."
         action={<Button onClick={reset}>Повторить</Button>}
       />
-    </main>
+    </Container>
   );
 }

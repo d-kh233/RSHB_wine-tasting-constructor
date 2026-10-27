@@ -14,7 +14,7 @@ export function Alert({ tone = "info", children, className }: { tone?: AlertTone
   return (
     <div
       role={tone === "danger" ? "alert" : "status"}
-      className={cx("rounded-md border px-3 py-2.5 text-sm", TONE[tone], className)}
+      className={cx("break-words rounded-md border px-3 py-2.5 text-sm", TONE[tone], className)}
     >
       {children}
     </div>

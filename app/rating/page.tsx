@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
+import { cardClass } from "@/components/ui/Card";
+import { Container } from "@/components/ui/Container";
+import { cx } from "@/components/ui/cx";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { Logo } from "@/components/ui/Logo";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { wineDetails } from "@/components/ui/WineCard";
 import { WINE_COLOR_LABEL } from "@/lib/constants";
@@ -18,12 +21,12 @@ export default async function RatingPage() {
   const rows = await ratingService.listPublic();
 
   return (
-    <main className="mx-auto max-w-page px-4 py-10 sm:py-14">
-      <Link href="/" className="font-serif text-base text-primary sm:text-lg">
-        Конструктор дегустаций
-      </Link>
-      <header className="mt-6 max-w-2xl">
-        <h1 className="text-3xl sm:text-4xl">Народный винный рейтинг</h1>
+    <Container as="main" className="pb-16">
+      <div className="py-4">
+        <Logo href="/" />
+      </div>
+      <header className="max-w-2xl pt-4">
+        <h1 className="text-display">Народный винный рейтинг</h1>
         <p className="mt-3 text-ink-muted">
           Средняя оценка гостей дегустаций по шкале 0–100. Оценки анонимные и приходят только из завершённых
           дегустаций; каждая шкала (5 звёзд, 10 или 100 баллов) приводится к 0–100.
@@ -44,7 +47,7 @@ export default async function RatingPage() {
             return (
               <li
                 key={row.wineId}
-                className="flex items-start gap-3 rounded-lg border border-line/70 bg-surface p-3 shadow-card sm:items-center sm:gap-4 sm:p-4"
+                className={cx(cardClass({ compact: true }), "flex items-start gap-4 sm:items-center")}
               >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-soft font-serif text-lg text-primary">
                   {row.place}
@@ -70,6 +73,6 @@ export default async function RatingPage() {
           })}
         </ol>
       )}
-    </main>
+    </Container>
   );
 }

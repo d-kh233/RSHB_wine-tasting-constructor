@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { WINE_COLOR_LABEL, type WineColor } from "@/lib/constants";
+import { cardClass } from "./Card";
 import { cx } from "./cx";
 
 /** Общие поля WineDTO и GuestWineInfoDTO — карточка подходит и организатору, и гостю. */
@@ -43,13 +44,7 @@ export function WineCard({
 }) {
   const details = wine ? wineDetails(wine) : "";
   return (
-    <div
-      className={cx(
-        "rounded-lg border bg-surface p-3 sm:p-4",
-        highlighted ? "border-primary shadow-raised" : "border-line/70 shadow-card",
-        className,
-      )}
-    >
+    <div className={cx(cardClass({ compact: true, highlighted, raised: highlighted }), className)}>
       <div className="flex items-start gap-3">
         {position !== undefined && (
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-soft font-serif text-lg text-primary">

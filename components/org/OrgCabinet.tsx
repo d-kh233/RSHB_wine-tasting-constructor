@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/apiClient";
 import { POLL_INTERVAL_MS, TASTING_MODE_LABEL, TASTING_STATUS_LABEL } from "@/lib/constants";
@@ -9,8 +8,10 @@ import type { InviteInfo } from "@/lib/qr";
 import { SCALES } from "@/lib/scales";
 import { Alert } from "../ui/Alert";
 import { Badge } from "../ui/Badge";
+import { Container } from "../ui/Container";
 import { CopyButton } from "../ui/CopyButton";
 import { LocalDate } from "../ui/LocalDate";
+import { Logo } from "../ui/Logo";
 import { Stepper, type Step } from "../ui/Stepper";
 import { LiveControl } from "./LiveControl";
 import { STATUS_TONE, TastingSwitcher } from "./MyTastings";
@@ -80,18 +81,16 @@ export function OrgCabinet({
   const copyCabinetLink = () => cabinetUrl ?? `${window.location.origin}${window.location.pathname}`;
 
   return (
-    <div className="mx-auto max-w-page px-4 pb-16">
-      <div className="flex items-center justify-between gap-2 py-3">
-        <Link href="/" className="min-w-0 truncate font-serif text-base text-primary sm:text-lg">
-          Конструктор дегустаций
-        </Link>
+    <Container className="pb-16">
+      <div className="flex items-center justify-between gap-2 py-4">
+        <Logo href="/" />
         <TastingSwitcher
           current={{ adminKey: tasting.adminKey, title: tasting.title, status: tasting.status, isDemo: tasting.isDemo }}
         />
       </div>
 
-      <header className="pt-2">
-        <h1 className="break-words text-2xl sm:text-3xl">{tasting.title}</h1>
+      <header className="pt-4">
+        <h1 className="break-words text-title">{tasting.title}</h1>
         <div className="mt-2 flex flex-wrap items-center gap-1.5 text-sm text-ink-muted">
           <Badge tone={STATUS_TONE[tasting.status]}>{TASTING_STATUS_LABEL[tasting.status]}</Badge>
           <Badge tone={tasting.mode === "blind" ? "primary" : "neutral"}>{TASTING_MODE_LABEL[tasting.mode]}</Badge>
@@ -133,6 +132,6 @@ export function OrgCabinet({
         )}
         {tab === "results" && <ResultsPanel tasting={tasting} onChange={setTasting} resultsUrl={resultsUrl} />}
       </div>
-    </div>
+    </Container>
   );
 }

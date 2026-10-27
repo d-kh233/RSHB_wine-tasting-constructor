@@ -26,11 +26,20 @@ export function generateInviteCode(): string {
 /** Код из URL: регистр не важен, гость может набрать его руками. */
 export const normalizeInviteCode = (code: string) => code.trim().toUpperCase();
 
-/** httpOnly; Secure только в prod — иначе cookie не ставится по http в локальной сети. */
-export const guestCookieOptions = () => ({
+/** Запрос пришёл по https — напрямую или через прокси хостинга (Render ставит x-forwarded-proto). */
+function isHttps(req: Request): boolean {
+  const forwarded = req.headers.get("x-forwarded-proto")?.split(",")[0].trim();
+  return (forwarded ?? new URL(req.url).protocol.replace(":", "")) === "https";
+}
+
+/**
+ * httpOnly; Secure — только когда сайт открыт по https. Не по NODE_ENV: `npm start` по http в локальной сети
+ * (http://<IP ноутбука>:3000) — тоже production, и Secure-cookie браузер там молча отбрасывает.
+ */
+export const guestCookieOptions = (req: Request) => ({
   httpOnly: true,
   sameSite: "lax" as const,
-  secure: process.env.NODE_ENV === "production",
+  secure: isHttps(req),
   path: "/",
   maxAge: GUEST_COOKIE_MAX_AGE_SEC,
 });

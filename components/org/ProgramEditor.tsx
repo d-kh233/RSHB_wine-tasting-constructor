@@ -67,7 +67,7 @@ export function ProgramEditor({
 
   return (
     <div className="grid gap-8 lg:grid-cols-2">
-      <section aria-labelledby="program-title">
+      <section aria-labelledby="program-title" className="min-w-0">
         <div className="flex items-baseline justify-between gap-2">
           <h2 id="program-title" className="text-xl">
             Программа
@@ -205,7 +205,7 @@ function CatalogPanel({
   }, [query]);
 
   return (
-    <section aria-labelledby="catalog-title">
+    <section aria-labelledby="catalog-title" className="min-w-0">
       <div className="flex items-center justify-between gap-2">
         <h2 id="catalog-title" className="text-xl">
           Каталог

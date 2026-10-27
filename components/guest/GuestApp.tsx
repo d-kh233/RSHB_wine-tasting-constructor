@@ -5,6 +5,7 @@ import { api } from "@/lib/apiClient";
 import { POLL_INTERVAL_MS, TASTING_MODE_LABEL } from "@/lib/constants";
 import type { GuestRatingDTO, GuestTastingDTO } from "@/lib/dto";
 import { SCALES } from "@/lib/scales";
+import { Container } from "../ui/Container";
 import { LocalDate } from "../ui/LocalDate";
 import { JoinForm } from "./JoinForm";
 import { RatingForm } from "./RatingForm";
@@ -123,13 +124,13 @@ export function GuestApp({ initial }: { initial: GuestTastingDTO }) {
   const showHeader = !view.me || screen.kind === "list" || !screenWine;
 
   return (
-    <main className="mx-auto min-h-dvh max-w-form px-4 pb-10 pt-5">
+    <Container as="main" size="narrow" className="min-h-dvh pb-10 pt-6">
       {showHeader && (
         <header className="mb-6">
           <p className="text-xs font-medium uppercase tracking-wide text-ink-muted">
             {TASTING_MODE_LABEL[view.mode]} дегустация · {SCALES[view.scale].label}
           </p>
-          <h1 className="mt-1 break-words text-2xl">{view.title}</h1>
+          <h1 className="mt-1 break-words text-title">{view.title}</h1>
           {(view.startsAt || view.location) && (
             <p className="mt-1 text-sm text-ink-muted">
               {view.startsAt && <LocalDate iso={view.startsAt} />}
@@ -149,6 +150,6 @@ export function GuestApp({ initial }: { initial: GuestTastingDTO }) {
         </header>
       )}
       {content}
-    </main>
+    </Container>
   );
 }

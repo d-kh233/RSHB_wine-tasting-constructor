@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { buttonClass } from "@/components/ui/Button";
+import { Container } from "@/components/ui/Container";
 import { EmptyState } from "@/components/ui/EmptyState";
 
 export default function OrgNotFound() {
   return (
-    <main className="mx-auto max-w-form px-4 py-16">
+    <Container as="main" size="narrow" className="py-16">
       <EmptyState
         icon="🔒"
         title="Ссылка недействительна"
@@ -15,6 +16,6 @@ export default function OrgNotFound() {
           </Link>
         }
       />
-    </main>
+    </Container>
   );
 }

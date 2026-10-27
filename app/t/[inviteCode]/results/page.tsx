@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ResultsView } from "@/components/guest/ResultsView";
 import { buttonClass } from "@/components/ui/Button";
+import { Container } from "@/components/ui/Container";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { normalizeInviteCode, readGuestToken } from "@/lib/auth";
 import { AppError } from "@/lib/http";
@@ -26,7 +27,7 @@ export default async function ResultsPage({ params }: Props) {
     if (err instanceof AppError && err.status === 404) notFound();
     if (err instanceof AppError && err.code === "NOT_PUBLISHED") {
       return (
-        <main className="mx-auto max-w-form px-4 py-16">
+        <Container as="main" size="narrow" className="py-16">
           <EmptyState
             icon="⏳"
             title="Итоги ещё не опубликованы"
@@ -37,7 +38,7 @@ export default async function ResultsPage({ params }: Props) {
               </Link>
             }
           />
-        </main>
+        </Container>
       );
     }
     throw err;
