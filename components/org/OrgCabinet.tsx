@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { TASTING_MODE_LABEL, TASTING_STATUS_LABEL } from "@/lib/constants";
+import { useCallback, useEffect, useState } from "react";
+import { api } from "@/lib/apiClient";
+import { POLL_INTERVAL_MS, TASTING_MODE_LABEL, TASTING_STATUS_LABEL } from "@/lib/constants";
 import type { OrgTastingDTO, WineDTO } from "@/lib/dto";
 import type { InviteInfo } from "@/lib/qr";
 import { SCALES } from "@/lib/scales";
@@ -11,16 +12,18 @@ import { Badge } from "../ui/Badge";
 import { CopyButton } from "../ui/CopyButton";
 import { LocalDate } from "../ui/LocalDate";
 import { Stepper, type Step } from "../ui/Stepper";
-import { InvitePanel } from "./InvitePanel";
+import { LiveControl } from "./LiveControl";
 import { STATUS_TONE, TastingSwitcher } from "./MyTastings";
 import { ProgramEditor } from "./ProgramEditor";
+import { ResultsPanel } from "./ResultsPanel";
 import { SettingsForm } from "./SettingsForm";
 import type { OrgTab } from "./tabs";
 
 const STEPS: Step<OrgTab>[] = [
   { id: "settings", label: "Настройки" },
   { id: "program", label: "Программа" },
-  { id: "invite", label: "Приглашение" },
+  { id: "live", label: "Проведение" },
+  { id: "results", label: "Итоги" },
 ];
 
 export function OrgCabinet({
@@ -30,6 +33,7 @@ export function OrgCabinet({
   initialTab,
   justCreated,
   cabinetUrl,
+  resultsUrl,
 }: {
   initial: OrgTastingDTO;
   invite: InviteInfo;
@@ -38,9 +42,32 @@ export function OrgCabinet({
   justCreated: boolean;
   /** Абсолютная ссылка на кабинет из NEXT_PUBLIC_BASE_URL; null — берём адрес из браузера. */
   cabinetUrl: string | null;
+  /** Абсолютная ссылка на итоги для гостей; null — NEXT_PUBLIC_BASE_URL не задан. */
+  resultsUrl: string | null;
 }) {
   const [tasting, setTasting] = useState(initial);
   const [tab, setTab] = useState<OrgTab>(initialTab);
+
+  const refresh = useCallback(async () => {
+    try {
+      setTasting(await api<OrgTastingDTO>(`/api/org/${tasting.adminKey}`));
+    } catch {
+      // сеть моргнула — обновим на следующем опросе
+    }
+  }, [tasting.adminKey]);
+
+  // Счётчики гостей и голосов: опрос, пока дегустация идёт (и в черновике на «Проведении» — гости входят заранее).
+  const live = tasting.status === "running" || (tasting.status === "draft" && tab === "live");
+  useEffect(() => {
+    if (!live) return;
+    const tick = () => document.visibilityState === "visible" && refresh();
+    const timer = window.setInterval(tick, POLL_INTERVAL_MS);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, [live, refresh]);
 
   // Вкладка — в URL (переживает перезагрузку); флаг ?created убираем, чтобы баннер не возвращался.
   useEffect(() => {
@@ -101,7 +128,10 @@ export function OrgCabinet({
           </div>
         )}
         {tab === "program" && <ProgramEditor tasting={tasting} initialCatalog={catalog} onChange={setTasting} />}
-        {tab === "invite" && <InvitePanel tasting={tasting} invite={invite} />}
+        {tab === "live" && (
+          <LiveControl tasting={tasting} invite={invite} onChange={setTasting} onGoResults={() => setTab("results")} />
+        )}
+        {tab === "results" && <ResultsPanel tasting={tasting} onChange={setTasting} resultsUrl={resultsUrl} />}
       </div>
     </div>
   );

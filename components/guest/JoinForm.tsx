@@ -7,6 +7,7 @@ import type { GuestTastingDTO } from "@/lib/dto";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Field, Input } from "../ui/Field";
+import { ResultsLink } from "./WineList";
 
 export function JoinForm({
   view,
@@ -22,7 +23,7 @@ export function JoinForm({
   const [error, setError] = useState<string | null>(null);
 
   if (view.status === "published") {
-    return <Alert tone="info">Дегустация завершена, итоги опубликованы — вход для новых гостей закрыт.</Alert>;
+    return <ResultsLink inviteCode={view.inviteCode} />;
   }
 
   async function onSubmit(e: FormEvent) {

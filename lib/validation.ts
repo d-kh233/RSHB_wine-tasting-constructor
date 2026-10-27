@@ -2,7 +2,7 @@
 // Диапазон значения оценки здесь НЕ проверяется: он зависит от шкалы дегустации → 422 в guestService.
 
 import { z } from "zod";
-import { LIMITS, TASTING_ACTIONS, TASTING_MODES, WINE_ACTIONS, WINE_COLORS } from "./constants";
+import { EXPORT_SCHEMA_VERSION, EXPORT_SOURCE_SYSTEM, LIMITS, TASTING_ACTIONS, TASTING_MODES, WINE_ACTIONS, WINE_COLORS } from "./constants";
 import { SCALE_IDS } from "./scales";
 
 /** Необязательный текст: обрезаем пробелы, пустую строку превращаем в null. */
@@ -119,3 +119,61 @@ export const rateSchema = z.object({
   note: optionalText(LIMITS.NOTE_MAX),
 });
 export type RateInput = z.infer<typeof rateSchema>;
+
+/* ---------- Импорт в «Народный винный рейтинг» (docs/rating-contract.md) ----------
+ * Без trim и transform: payloadHash считается от разобранного тела, оно не должно «нормализоваться». */
+
+const nullableText = (max: number) => z.string().max(max).nullable();
+
+export const ratingExportSchema = z.object({
+  schemaVersion: z.literal(EXPORT_SCHEMA_VERSION, {
+    errorMap: () => ({ message: `поддерживается только schemaVersion "${EXPORT_SCHEMA_VERSION}"` }),
+  }),
+  exportId: z.string().regex(/^[A-Za-z0-9_-]{8,64}$/, "exportId — 8..64 символов [A-Za-z0-9_-]"),
+  source: z.object({
+    system: z.literal(EXPORT_SOURCE_SYSTEM, { errorMap: () => ({ message: "неизвестная система-источник" }) }),
+    tastingId: id,
+    title: z.string().min(1).max(LIMITS.TITLE_MAX),
+    mode,
+    closedAt: z.string().datetime({ offset: true, message: "closedAt — дата ISO 8601 (дегустация должна быть завершена)" }),
+    scale: z.object({
+      id: scale,
+      min: z.number(),
+      max: z.number(),
+      step: z.number().positive(),
+    }),
+  }),
+  wines: z
+    .array(
+      z.object({
+        tastingWineId: id,
+        position: z.number().int().min(1),
+        wineId: id,
+        name: z.string().min(1).max(LIMITS.WINE_NAME_MAX),
+        producer: nullableText(LIMITS.WINE_TEXT_MAX),
+        vintage: z.number().int().nullable(),
+        region: nullableText(LIMITS.WINE_TEXT_MAX),
+        country: nullableText(LIMITS.WINE_TEXT_MAX),
+        grape: nullableText(LIMITS.WINE_TEXT_MAX),
+        color: enumOf(WINE_COLORS, "неизвестный цвет вина").nullable(),
+      }),
+    )
+    .min(1, "в экспорте нет вин")
+    .max(LIMITS.EXPORT_MAX_WINES),
+  ratings: z
+    .array(
+      z.object({
+        guestHash: z.string().regex(/^[0-9a-f]{32}$/, "guestHash — 32 hex-символа"),
+        tastingWineId: id,
+        value: z.number(),
+        normalized100: z.number(),
+      }),
+    )
+    .max(LIMITS.EXPORT_MAX_RATINGS),
+  stats: z.object({
+    totalRatings: z.number().int().min(0),
+    exportedRatings: z.number().int().min(0),
+    rejected: z.array(z.object({ reason: z.string().min(1).max(64), count: z.number().int().min(1) })).max(50),
+  }),
+});
+export type RatingExportInput = z.infer<typeof ratingExportSchema>;

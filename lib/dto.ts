@@ -296,8 +296,8 @@ export interface PublicResultsDTO {
 }
 
 /* ---------- Контракт передачи в «Народный винный рейтинг» ----------
- * Подробно — docs/rating-contract.md. Экспорт детерминирован (без generatedAt),
- * чтобы повторная выгрузка давала тот же payload и тот же exportId. */
+ * Подробно — docs/rating-contract.md. Экспорт детерминирован (без generatedAt и статуса
+ * дегустации), чтобы выгрузка до и после публикации давала тот же payload и тот же exportId. */
 
 export interface RatingExportV1 {
   schemaVersion: "1.0";
@@ -307,8 +307,7 @@ export interface RatingExportV1 {
     tastingId: string;
     title: string;
     mode: TastingMode;
-    status: TastingStatus;
-    closedAt: string | null;
+    closedAt: string;
     scale: { id: ScaleId; min: number; max: number; step: number };
   };
   wines: {

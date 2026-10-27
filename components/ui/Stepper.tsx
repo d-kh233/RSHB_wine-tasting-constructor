@@ -27,7 +27,7 @@ export function Stepper<T extends string>({
                 onClick={() => onSelect(step.id)}
                 aria-current={active ? "step" : undefined}
                 className={cx(
-                  "flex w-full items-center justify-center gap-2 border-b-2 px-2 py-3 text-sm font-medium transition-colors sm:px-5",
+                  "flex w-full items-center justify-center gap-2 border-b-2 px-1 py-3 text-xs font-medium transition-colors sm:px-5 sm:text-sm",
                   active ? "border-primary text-primary" : "border-transparent text-ink-muted hover:text-ink",
                 )}
               >

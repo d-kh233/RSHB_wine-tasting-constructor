@@ -1,9 +1,11 @@
-// Дегустация глазами организатора: создание, настройки, программа, переходы статусов (PLAN.md §5).
+// Дегустация глазами организатора: создание, настройки, программа, переходы статусов (PLAN.md §5),
+// раскрытие бутылок и сводка.
 // Доступ = знание adminKey. Все функции возвращают DTO, а не сущности Prisma.
 
 import type { Prisma, Tasting } from "@prisma/client";
 import { generateAdminKey, generateInviteCode } from "@/lib/auth";
 import {
+  blindWineLabel,
   KEY_GENERATION_ATTEMPTS,
   TASTING_MODE,
   TASTING_STATUS,
@@ -14,10 +16,13 @@ import {
   type TastingAction,
   type TastingStatus,
   type WineAction,
+  type WineStatus,
 } from "@/lib/constants";
 import { db } from "@/lib/db";
-import { toOrgTastingDTO, type OrgTastingDTO } from "@/lib/dto";
+import { toOrgTastingDTO, toWineDTO, type OrgTastingDTO, type SummaryDTO } from "@/lib/dto";
 import { AppError, conflict, isUniqueViolation, notFound } from "@/lib/http";
+import type { ScaleId } from "@/lib/scales";
+import { groupBy, rankByScore, wineStats } from "@/lib/stats";
 import type { CreateTastingInput, UpdateTastingInput } from "@/lib/validation";
 
 const orgInclude = {
@@ -43,6 +48,10 @@ async function loadOrgDTO(tastingId: string): Promise<OrgTastingDTO> {
 }
 
 /* ---------- Чтение ---------- */
+
+export async function exists(adminKey: string): Promise<boolean> {
+  return (await db.tasting.count({ where: { adminKey } })) > 0;
+}
 
 export async function findOrgTasting(adminKey: string): Promise<OrgTastingDTO | null> {
   const tasting = await db.tasting.findUnique({ where: { adminKey }, include: orgInclude });
@@ -225,4 +234,77 @@ export async function setWineStatus(adminKey: string, tastingWineId: string, act
     throw conflict("INVALID_WINE_TRANSITION", message);
   }
   return loadOrgDTO(tasting.id);
+}
+
+/* ---------- Раскрытие бутылок ---------- */
+
+/** Раскрытие — только в слепой дегустации и только после её завершения (до публикации). */
+function requireRevealable(tasting: Tasting) {
+  if (tasting.mode !== TASTING_MODE.BLIND) {
+    throw conflict("NOT_BLIND", "В открытой дегустации названия вин гостям и так видны");
+  }
+  if (tasting.status !== TASTING_STATUS.CLOSED) {
+    throw conflict(
+      "NOT_CLOSED",
+      tasting.status === TASTING_STATUS.PUBLISHED
+        ? "Итоги уже опубликованы — все бутылки раскрыты"
+        : "Раскрывать бутылки можно только после завершения дегустации",
+    );
+  }
+}
+
+/** Повторное раскрытие уже раскрытой бутылки — не ошибка (двойной клик): дата не меняется. */
+export async function reveal(adminKey: string, tastingWineId: string): Promise<OrgTastingDTO> {
+  const tasting = await requireTasting(adminKey);
+  requireRevealable(tasting);
+  const tw = await db.tastingWine.findFirst({ where: { id: tastingWineId, tastingId: tasting.id } });
+  if (!tw) throw notFound("Вино не найдено в программе");
+  await db.tastingWine.updateMany({ where: { id: tw.id, revealedAt: null }, data: { revealedAt: new Date() } });
+  return loadOrgDTO(tasting.id);
+}
+
+export async function revealAll(adminKey: string): Promise<OrgTastingDTO> {
+  const tasting = await requireTasting(adminKey);
+  requireRevealable(tasting);
+  await db.tastingWine.updateMany({ where: { tastingId: tasting.id, revealedAt: null }, data: { revealedAt: new Date() } });
+  return loadOrgDTO(tasting.id);
+}
+
+/* ---------- Сводка ---------- */
+
+/** Сводка по винам: число голосов, среднее, разброс, avg100, места и заметки без имён. */
+export async function summary(adminKey: string): Promise<SummaryDTO> {
+  const tasting = await requireTasting(adminKey);
+  const [program, ratings, guestsCount] = await Promise.all([
+    db.tastingWine.findMany({ where: { tastingId: tasting.id }, include: { wine: true }, orderBy: { position: "asc" } }),
+    db.rating.findMany({
+      where: { tastingId: tasting.id },
+      select: { tastingWineId: true, value: true, note: true },
+      orderBy: { createdAt: "asc" },
+    }),
+    db.guest.count({ where: { tastingId: tasting.id } }),
+  ]);
+
+  const byWine = groupBy(ratings, (r) => r.tastingWineId);
+  const rows = program.map((tw) => {
+    const own = byWine.get(tw.id) ?? [];
+    return {
+      tastingWineId: tw.id,
+      position: tw.position,
+      label: blindWineLabel(tw.position),
+      status: tw.status as WineStatus,
+      revealed: tw.revealedAt !== null,
+      wine: toWineDTO(tw.wine),
+      ...wineStats(tasting.scale, own.map((r) => r.value)),
+      notes: own.map((r) => r.note).filter((n): n is string => Boolean(n)),
+    };
+  });
+
+  return {
+    scale: tasting.scale as ScaleId,
+    status: tasting.status as TastingStatus,
+    guestsCount,
+    totalRatings: ratings.length,
+    wines: rankByScore(rows, (r) => r.avg100),
+  };
 }

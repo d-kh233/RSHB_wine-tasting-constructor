@@ -49,6 +49,11 @@ export default function HomePage() {
                   Анкета гостя (код {DEMO_INVITE_CODE}) →
                 </Link>
               </li>
+              <li>
+                <Link href="/rating" className="font-medium text-primary underline-offset-4 hover:underline">
+                  Народный винный рейтинг →
+                </Link>
+              </li>
             </ul>
           </section>
         </aside>

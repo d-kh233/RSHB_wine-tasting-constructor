@@ -59,8 +59,9 @@ export function GuestApp({ initial }: { initial: GuestTastingDTO }) {
     }
   }, [code]);
 
-  // Поллинг, пока что-то может измениться: организатор открывает и закрывает вина.
-  const live = view.me !== null && (view.status === "draft" || view.status === "running");
+  // Поллинг, пока что-то может измениться: организатор открывает и закрывает вина,
+  // после завершения — раскрывает бутылки и публикует итоги.
+  const live = view.me !== null && view.status !== "published";
   useEffect(() => {
     if (!live) return;
     const tick = () => document.visibilityState === "visible" && refresh();

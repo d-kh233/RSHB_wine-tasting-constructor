@@ -1,7 +1,10 @@
+import Link from "next/link";
 import type { GuestRatingDTO, GuestTastingDTO, GuestTastingWineDTO } from "@/lib/dto";
 import { formatScaleValue } from "@/lib/scales";
 import { Alert } from "../ui/Alert";
 import { Badge } from "../ui/Badge";
+import { buttonClass } from "../ui/Button";
+import { cx } from "../ui/cx";
 import { WineCard } from "../ui/WineCard";
 
 /** Открытые и ещё не оценённые гостем вина — их можно оценить прямо сейчас. */
@@ -21,9 +24,17 @@ function StatusBanner({ view, ratableCount }: { view: GuestTastingDTO; ratableCo
         </Alert>
       );
     case "closed":
-      return <Alert tone="info">Приём оценок завершён. Итоги появятся после публикации.</Alert>;
+      return (
+        <Alert tone="info">
+          Приём оценок завершён.{" "}
+          {view.mode === "blind"
+            ? "Организатор раскрывает бутылки — названия появятся прямо в списке. "
+            : ""}
+          Итоги появятся после публикации.
+        </Alert>
+      );
     case "published":
-      return <Alert tone="success">Итоги дегустации опубликованы.</Alert>;
+      return <ResultsLink inviteCode={view.inviteCode} />;
     default: {
       if (ratableCount > 0) return null;
       const allDone = view.wines.length > 0 && view.myRatings.length >= view.wines.length;
@@ -105,5 +116,16 @@ export function WineList({ view, onRate }: { view: GuestTastingDTO; onRate: (tas
 
       {view.wines.length === 0 && <Alert tone="info">Организатор ещё собирает программу.</Alert>}
     </div>
+  );
+}
+
+export function ResultsLink({ inviteCode }: { inviteCode: string }) {
+  return (
+    <Alert tone="success">
+      <p className="font-medium">Итоги дегустации опубликованы!</p>
+      <Link href={`/t/${inviteCode}/results`} className={cx(buttonClass({ block: true }), "mt-3")}>
+        Смотреть итоги →
+      </Link>
+    </Alert>
   );
 }

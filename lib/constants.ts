@@ -116,6 +116,8 @@ export const LIMITS = {
   WINE_TEXT_MAX: 120,
   VINTAGE_MIN: 1900,
   CATALOG_SEARCH_LIMIT: 50,
+  EXPORT_MAX_WINES: 200,
+  EXPORT_MAX_RATINGS: 20000,
 } as const;
 
 /* ---------- Ключи и коды ---------- */
@@ -145,5 +147,32 @@ export const DEMO_INVITE_CODE = "DEGUST";
 /* ---------- Экспорт в рейтинг ---------- */
 
 export const EXPORT_SCHEMA_VERSION = "1.0";
+export const EXPORT_SOURCE_SYSTEM = "wine-tasting-constructor";
+/** Длина анонимного guestHash и хвоста exportId (hex-символов sha256). */
+export const EXPORT_HASH_LENGTH = 32;
+/** Допуск сверки normalized100 с пересчётом по шкале (половина последнего знака). */
+export const NORMALIZED_TOLERANCE = 0.05;
+
+/** Причины отклонения оценок — общие для экспорта и импорта (docs/rating-contract.md). */
+export const REJECT_REASON = {
+  SCALE_MISMATCH: "SCALE_MISMATCH",
+  VALUE_OUT_OF_SCALE: "VALUE_OUT_OF_SCALE",
+  UNKNOWN_TASTING_WINE: "UNKNOWN_TASTING_WINE",
+  UNKNOWN_WINE: "UNKNOWN_WINE",
+  NORMALIZATION_MISMATCH: "NORMALIZATION_MISMATCH",
+  DUPLICATE_IN_EXPORT: "DUPLICATE_IN_EXPORT",
+  ALREADY_IMPORTED: "ALREADY_IMPORTED",
+} as const;
+export type RejectReason = (typeof REJECT_REASON)[keyof typeof REJECT_REASON];
+
+export const REJECT_REASON_LABEL: Record<RejectReason, string> = {
+  SCALE_MISMATCH: "оценка поставлена по другой шкале",
+  VALUE_OUT_OF_SCALE: "значение вне шкалы",
+  UNKNOWN_TASTING_WINE: "вино не из программы экспорта",
+  UNKNOWN_WINE: "вина нет в каталоге рейтинга",
+  NORMALIZATION_MISMATCH: "normalized100 не совпадает с пересчётом",
+  DUPLICATE_IN_EXPORT: "повтор оценки гостя в одном экспорте",
+  ALREADY_IMPORTED: "оценка уже есть в рейтинге",
+};
 /** Знаков после запятой для normalized100 и средних — одно место округления. */
 export const SCORE_DECIMALS = 1;

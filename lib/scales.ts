@@ -97,3 +97,6 @@ export function formatScaleValue(scaleId: string, value: number): string {
   const text = Number.isInteger(value) ? String(value) : value.toFixed(1).replace(".", ",");
   return scale.input === "stars" ? `${text} ★` : `${text} / ${scale.max}`;
 }
+
+/** Балл 0..100 с одним знаком и запятой: 87,3. */
+export const formatScore100 = (value: number) => roundScore(value).toFixed(1).replace(".", ",");

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError, errorMessage } from "@/lib/apiClient";
 import type { OrgTastingDTO, WineDTO } from "@/lib/dto";
+import { plural } from "@/lib/plural";
 import { Alert } from "../ui/Alert";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
@@ -14,15 +15,6 @@ import { WineCard } from "../ui/WineCard";
 import { WineForm } from "./WineForm";
 
 const SEARCH_DEBOUNCE_MS = 250;
-
-/** 1 вино, 2 вина, 5 вин. */
-function winesCount(n: number): string {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  const word =
-    mod10 === 1 && mod100 !== 11 ? "вино" : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14) ? "вина" : "вин";
-  return `${n} ${word}`;
-}
 
 export function ProgramEditor({
   tasting,
@@ -80,7 +72,7 @@ export function ProgramEditor({
           <h2 id="program-title" className="text-xl">
             Программа
           </h2>
-          <span className="text-sm text-ink-muted">{winesCount(tasting.wines.length)}</span>
+          <span className="text-sm text-ink-muted">{plural(tasting.wines.length, ["вино", "вина", "вин"])}</span>
         </div>
         <p className="mt-1 text-sm text-ink-muted">
           {tasting.mode === "blind"
