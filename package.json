@@ -1,0 +1,38 @@
+{
+  "name": "wine-tasting-constructor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Конструктор дегустаций — кейс РСХБ",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "prisma db push --skip-generate && next dev",
+    "build": "prisma generate && next build",
+    "start": "prisma db push --skip-generate && tsx prisma/seed.ts && next start",
+    "seed": "tsx prisma/seed.ts",
+    "db:push": "prisma db push",
+    "typecheck": "tsc --noEmit",
+    "postinstall": "prisma generate"
+  },
+  "dependencies": {
+    "@prisma/client": "6.19.3",
+    "next": "15.5.28",
+    "prisma": "6.19.3",
+    "qrcode": "1.5.4",
+    "react": "19.1.10",
+    "react-dom": "19.1.10",
+    "tsx": "4.23.15",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "22.18.0",
+    "@types/qrcode": "1.5.5",
+    "@types/react": "19.1.12",
+    "@types/react-dom": "19.1.9",
+    "autoprefixer": "10.4.21",
+    "postcss": "8.5.6",
+    "tailwindcss": "3.4.19",
+    "typescript": "5.9.2"
+  }
+}

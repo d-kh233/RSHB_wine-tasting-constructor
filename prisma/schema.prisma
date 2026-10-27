@@ -1,0 +1,135 @@
+// Модель данных — строго по docs/PLAN.md, раздел 4.
+// Статусы и прочие перечисления — строки; допустимые значения в lib/constants.ts и lib/scales.ts.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Tasting {
+  id           String    @id @default(cuid())
+  title        String
+  description  String?
+  location     String?
+  startsAt     DateTime?
+  mode         String // TASTING_MODE: open | blind
+  scale        String // SCALE_ID: points100 | stars5 | points10
+  notesEnabled Boolean   @default(true)
+  status       String    @default("draft") // TASTING_STATUS: draft | running | closed | published
+  inviteCode   String    @unique
+  adminKey     String    @unique
+  isDemo       Boolean   @default(false)
+  startedAt    DateTime?
+  closedAt     DateTime?
+  publishedAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  wines   TastingWine[]
+  guests  Guest[]
+  ratings Rating[]
+}
+
+model Wine {
+  id        String   @id @default(cuid())
+  seedKey   String?  @unique // только для идемпотентного seed
+  name      String
+  producer  String?
+  vintage   Int?
+  region    String?
+  country   String?
+  grape     String?
+  color     String? // WINE_COLOR
+  priceRub  Int?
+  isDemo    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  tastingWines  TastingWine[]
+  publicRatings PublicRating[]
+
+  @@index([name])
+}
+
+model TastingWine {
+  id         String    @id @default(cuid())
+  tastingId  String
+  wineId     String
+  position   Int // «Вино №N», 1..N без пропусков
+  status     String    @default("pending") // WINE_STATUS: pending | open | closed
+  revealedAt DateTime? // null — бутылка не раскрыта (важно для blind)
+  openedAt   DateTime?
+  closedAt   DateTime?
+
+  tasting Tasting  @relation(fields: [tastingId], references: [id], onDelete: Cascade)
+  wine    Wine     @relation(fields: [wineId], references: [id], onDelete: Restrict)
+  ratings Rating[]
+
+  @@unique([tastingId, wineId])
+  @@unique([tastingId, position])
+}
+
+model Guest {
+  id          String   @id @default(cuid())
+  tastingId   String
+  displayName String?
+  tokenHash   String   @unique // sha256 от токена из cookie; сам токен не храним
+  createdAt   DateTime @default(now())
+
+  tasting Tasting  @relation(fields: [tastingId], references: [id], onDelete: Cascade)
+  ratings Rating[]
+
+  @@index([tastingId])
+}
+
+model Rating {
+  id            String   @id @default(cuid())
+  tastingId     String
+  tastingWineId String
+  guestId       String
+  value         Float
+  scale         String // снимок SCALE_ID на момент голоса
+  note          String?
+  createdAt     DateTime @default(now())
+
+  tasting     Tasting     @relation(fields: [tastingId], references: [id], onDelete: Cascade)
+  tastingWine TastingWine @relation(fields: [tastingWineId], references: [id], onDelete: Cascade)
+  guest       Guest       @relation(fields: [guestId], references: [id], onDelete: Cascade)
+
+  // Антидубли: один гость — одна оценка на вино
+  @@unique([guestId, tastingWineId])
+  @@index([tastingId])
+}
+
+model RatingImport {
+  id              String   @id @default(cuid())
+  exportId        String   @unique // идемпотентность импорта
+  sourceTastingId String
+  payloadHash     String
+  acceptedCount   Int
+  rejectedCount   Int
+  resultJson      String // сохранённый ответ, отдаётся при повторе
+  createdAt       DateTime @default(now())
+
+  entries PublicRating[]
+}
+
+model PublicRating {
+  id              String   @id @default(cuid())
+  importId        String
+  wineId          String
+  sourceTastingId String
+  guestHash       String // анонимный хэш гостя, без имени
+  normalized100   Float
+  createdAt       DateTime @default(now())
+
+  import RatingImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+  wine   Wine         @relation(fields: [wineId], references: [id], onDelete: Restrict)
+
+  // Второй рубеж против дублей в общем рейтинге
+  @@unique([sourceTastingId, guestHash, wineId])
+  @@index([wineId])
+}
