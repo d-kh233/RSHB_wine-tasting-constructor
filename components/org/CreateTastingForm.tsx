@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { api, errorMessage } from "@/lib/apiClient";
-import { rememberTasting } from "@/lib/myTastings";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { EMPTY_TASTING_FORM, formToPayload, TastingFields } from "./TastingFields";
@@ -21,7 +20,6 @@ export function CreateTastingForm() {
     setError(null);
     try {
       const { adminKey } = await api<{ adminKey: string }>("/api/tastings", { body: formToPayload(values) });
-      rememberTasting({ adminKey, title: values.title.trim(), status: "draft", isDemo: false });
       router.push(`/org/${adminKey}?created=1`);
     } catch (err) {
       setError(errorMessage(err));

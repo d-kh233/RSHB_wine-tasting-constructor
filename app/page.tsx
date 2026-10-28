@@ -6,6 +6,8 @@ import { MyTastingsList } from "@/components/org/MyTastings";
 import { Container } from "@/components/ui/Container";
 import { Logo } from "@/components/ui/Logo";
 import { DEMO_ADMIN_KEY, DEMO_INVITE_CODE } from "@/lib/constants";
+import { getSessionOrganizer } from "@/lib/session";
+import * as tastingService from "@/services/tastingService";
 
 const BENEFITS: { title: string; text: string; icon: ReactNode }[] = [
   {
@@ -38,7 +40,10 @@ const BENEFITS: { title: string; text: string; icon: ReactNode }[] = [
 
 const linkClass = "font-medium text-primary underline-offset-4 hover:underline";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const organizer = await getSessionOrganizer();
+  const myTastings = organizer ? await tastingService.listByOwner(organizer.id) : [];
+
   return (
     <Container as="main" className="py-8 sm:py-12 lg:py-16">
       {/* Телефон: промо → выбор роли → иллюстрация. Десктоп: промо и иллюстрация слева, выбор роли справа. */}
@@ -73,7 +78,7 @@ export default function HomePage() {
             <GuestCard />
           </div>
 
-          <MyTastingsList />
+          <MyTastingsList email={organizer?.email ?? null} entries={myTastings} />
 
           <section aria-labelledby="demo">
             <h2 id="demo" className="text-xl">

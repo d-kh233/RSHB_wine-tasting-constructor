@@ -135,6 +135,19 @@ export const GUEST_COOKIE_PREFIX = "wt_g_";
 export const guestCookieName = (inviteCode: string) => `${GUEST_COOKIE_PREFIX}${inviteCode}`;
 export const GUEST_COOKIE_MAX_AGE_SEC = 60 * 60 * 24 * 30;
 
+/* ---------- Организатор ---------- */
+
+export const SESSION_COOKIE_NAME = "wt_org_session";
+export const SESSION_MAX_AGE_SEC = 60 * 60 * 24 * 30;
+export const PASSWORD_MIN = 8;
+/** bcrypt учитывает только первые 72 байта пароля. */
+export const PASSWORD_MAX = 72;
+export const EMAIL_MAX = 254;
+export const BCRYPT_ROUNDS = 10;
+/** Неудачных входов на пару «IP + email» за окно, потом 429. */
+export const LOGIN_MAX_FAILURES = 5;
+export const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+
 /** Интервал поллинга для экранов «Проведение» и анкеты гостя. */
 export const POLL_INTERVAL_MS = 5000;
 

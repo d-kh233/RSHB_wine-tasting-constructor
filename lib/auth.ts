@@ -1,4 +1,4 @@
-// Ключи, коды и cookie гостя. Авторизация организатора — в планах: сейчас доступ = знание adminKey.
+// Ключи, коды и cookie гостя. Сессия организатора — в lib/session.ts.
 
 import { createHash, randomBytes, randomInt } from "node:crypto";
 import { cookies } from "next/headers";
@@ -27,7 +27,7 @@ export function generateInviteCode(): string {
 export const normalizeInviteCode = (code: string) => code.trim().toUpperCase();
 
 /** Запрос пришёл по https — напрямую или через прокси хостинга (Render ставит x-forwarded-proto). */
-function isHttps(req: Request): boolean {
+export function isHttps(req: Request): boolean {
   const forwarded = req.headers.get("x-forwarded-proto")?.split(",")[0].trim();
   return (forwarded ?? new URL(req.url).protocol.replace(":", "")) === "https";
 }

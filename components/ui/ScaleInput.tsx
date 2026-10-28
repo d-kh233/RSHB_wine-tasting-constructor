@@ -1,8 +1,8 @@
 import { formatScaleValue, getScale, scaleValues, type ScaleId } from "@/lib/scales";
 import { cx } from "./cx";
 
-/** Словесная подсказка к шкале Паркера — чтобы гостю было понятно, что значит «87». */
-const PARKER_BANDS: [min: number, label: string][] = [
+/** Словесная подсказка к 100-балльной шкале — чтобы гостю было понятно, что значит «87». */
+const SCORE_BANDS: [min: number, label: string][] = [
   [96, "Выдающееся"],
   [90, "Отличное"],
   [85, "Очень хорошее"],
@@ -10,6 +10,7 @@ const PARKER_BANDS: [min: number, label: string][] = [
   [70, "Среднее"],
   [60, "Ниже среднего"],
   [50, "Плохое"],
+  [0, "Очень плохое"],
 ];
 
 const STAR_LABELS = ["Плохо", "Так себе", "Нормально", "Хорошо", "Отлично"];
@@ -30,7 +31,7 @@ export function ScaleInput({ scaleId, value, onChange, disabled }: ScaleInputPro
     const mid = Math.round((scale.min + scale.max) / 2);
     const nudge = (delta: number) =>
       onChange(value === null ? mid : Math.min(scale.max, Math.max(scale.min, value + delta * scale.step)));
-    const band = value === null ? null : PARKER_BANDS.find(([min]) => value >= min)?.[1];
+    const band = value === null ? null : SCORE_BANDS.find(([min]) => value >= min)?.[1];
     return (
       <div>
         <div className="text-center" aria-live="polite">

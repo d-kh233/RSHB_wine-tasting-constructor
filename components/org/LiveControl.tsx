@@ -25,7 +25,7 @@ const WINE_TONE: Record<WineStatus, BadgeTone> = {
 const GUESTS: [string, string, string] = ["гость", "гостя", "гостей"];
 const RATINGS: [string, string, string] = ["оценка", "оценки", "оценок"];
 
-/** «Проведение»: запуск и завершение, открытие вин по одному, счётчик голосов, приглашение. */
+/** «Проведение»: слева приглашение (QR, код, ссылка), справа запуск, открытие вин по одному и счётчики голосов. */
 export function LiveControl({
   tasting,
   invite,
@@ -50,89 +50,88 @@ export function LiveControl({
   const openCount = tasting.wines.filter((w) => w.status === "open").length;
 
   return (
-    <div className="space-y-8">
-      <Card className="space-y-4">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-xl">
-              {tasting.status === "draft"
-                ? "Дегустация не запущена"
-                : running
-                  ? "Дегустация идёт"
-                  : "Дегустация завершена"}
-            </h2>
-            <p className="mt-1 text-sm text-ink-muted">
-              {plural(tasting.guestsCount, GUESTS)} · {plural(tasting.ratingsCount, RATINGS)}
-              {running && ` · открыто вин: ${openCount}`}
-            </p>
-          </div>
-          {tasting.status === "draft" && (
-            <Button
-              size="lg"
-              onClick={() => setStatus("start")}
-              loading={busy === "start"}
-              disabled={busy !== null || tasting.wines.length === 0}
-            >
-              Запустить дегустацию
-            </Button>
-          )}
-          {running && (
-            <Button variant="danger" onClick={() => setConfirmClose(true)} disabled={busy !== null}>
-              Завершить дегустацию
-            </Button>
-          )}
-          {(tasting.status === "closed" || tasting.status === "published") && (
-            <Button variant="secondary" onClick={onGoResults}>
-              К итогам →
-            </Button>
-          )}
-        </div>
-        {tasting.status === "draft" && (
-          <p className="text-sm text-ink-muted">
-            {tasting.wines.length === 0
-              ? "Добавьте в программу хотя бы одно вино — без него запустить нельзя."
-              : "После запуска настройки и программа замораживаются. Вина открывайте по одному — гости увидят их в течение 5 секунд."}
-          </p>
-        )}
-        {running && openCount === 0 && (
-          <Alert tone="info">Откройте вино — гости смогут его оценить. Счётчики голосов обновляются сами.</Alert>
-        )}
-        {error && <Alert tone="danger">{error}</Alert>}
-      </Card>
-
-      <section aria-labelledby="live-wines">
-        <h2 id="live-wines" className="mb-3 text-xl">
-          Вина
-        </h2>
-        <ol className="space-y-2">
-          {tasting.wines.map((tw) => (
-            <li key={tw.id}>
-              <WineCard
-                position={tw.position}
-                label={tw.label}
-                wine={tw.wine}
-                highlighted={tw.status === "open"}
-                badges={<Badge tone={WINE_TONE[tw.status]}>{WINE_STATUS_LABEL[tw.status]}</Badge>}
-                actions={running && <WineActions tw={tw} busy={busy} onAction={(a) => wineAction(tw, a)} />}
-              >
-                {tasting.status !== "draft" && <VoteMeter votes={tw.ratingsCount} guests={tasting.guestsCount} />}
-              </WineCard>
-            </li>
-          ))}
-        </ol>
-        {tasting.wines.length === 0 && (
-          <Alert tone="info" className="mt-2">
-            Программа пуста — добавьте вина на шаге «Программа».
-          </Alert>
-        )}
-      </section>
-
+    <div className="grid gap-6 lg:grid-cols-[340px_minmax(0,1fr)] lg:items-start">
       <section aria-labelledby="live-invite">
-        <h2 id="live-invite" className="mb-3 text-xl">
-          Приглашение
-        </h2>
         <InvitePanel tasting={tasting} invite={invite} />
       </section>
+
+      <div className="min-w-0 space-y-6">
+        <Card className="space-y-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-xl">
+                {tasting.status === "draft"
+                  ? "Дегустация не запущена"
+                  : running
+                    ? "Дегустация идёт"
+                    : "Дегустация завершена"}
+              </h2>
+              <p className="mt-1 text-sm text-ink-muted">
+                {plural(tasting.guestsCount, GUESTS)} · {plural(tasting.ratingsCount, RATINGS)}
+                {running && ` · открыто вин: ${openCount}`}
+              </p>
+            </div>
+            {tasting.status === "draft" && (
+              <Button
+                size="lg"
+                onClick={() => setStatus("start")}
+                loading={busy === "start"}
+                disabled={busy !== null || tasting.wines.length === 0}
+              >
+                Запустить дегустацию
+              </Button>
+            )}
+            {running && (
+              <Button variant="danger" onClick={() => setConfirmClose(true)} disabled={busy !== null}>
+                Завершить дегустацию
+              </Button>
+            )}
+            {(tasting.status === "closed" || tasting.status === "published") && (
+              <Button variant="secondary" onClick={onGoResults}>
+                К итогам →
+              </Button>
+            )}
+          </div>
+          {tasting.status === "draft" && (
+            <p className="text-sm text-ink-muted">
+              {tasting.wines.length === 0
+                ? "Добавьте в программу хотя бы одно вино — без него запустить нельзя."
+                : "После запуска настройки и программа замораживаются. Вина открывайте по одному — гости увидят их в течение 5 секунд."}
+            </p>
+          )}
+          {running && openCount === 0 && (
+            <Alert tone="info">Откройте вино — гости смогут его оценить. Счётчики голосов обновляются сами.</Alert>
+          )}
+          {error && <Alert tone="danger">{error}</Alert>}
+        </Card>
+
+        <section aria-labelledby="live-wines">
+          <h2 id="live-wines" className="mb-3 text-xl">
+            Ход дегустации
+          </h2>
+          <ol className="space-y-2">
+            {tasting.wines.map((tw) => (
+              <li key={tw.id}>
+                <WineCard
+                  position={tw.position}
+                  label={tw.label}
+                  wine={tw.wine}
+                  highlighted={tw.status === "open"}
+                  badges={<Badge tone={WINE_TONE[tw.status]}>{WINE_STATUS_LABEL[tw.status]}</Badge>}
+                  actions={running && <WineActions tw={tw} busy={busy} onAction={(a) => wineAction(tw, a)} />}
+                >
+                  {tasting.status !== "draft" && <VoteMeter votes={tw.ratingsCount} guests={tasting.guestsCount} />}
+                </WineCard>
+              </li>
+            ))}
+          </ol>
+          {tasting.wines.length === 0 && (
+            <Alert tone="info" className="mt-2">
+              Программа пуста — добавьте вина на шаге «Программа».
+            </Alert>
+          )}
+        </section>
+      </div>
 
       <ConfirmModal
         open={confirmClose}

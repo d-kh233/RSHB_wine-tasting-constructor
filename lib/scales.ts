@@ -28,8 +28,8 @@ export const SCALES: Record<ScaleId, ScaleDef> = {
   points100: {
     id: "points100",
     label: "100 баллов",
-    hint: "Шкала Паркера: 50 — плохо, 100 — идеально",
-    min: 50,
+    hint: "От 0 до 100: 0 — ужасно, 100 — идеально",
+    min: 0,
     max: 100,
     step: 1,
     input: "slider",

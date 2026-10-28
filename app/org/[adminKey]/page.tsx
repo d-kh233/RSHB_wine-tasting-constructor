@@ -4,6 +4,7 @@ import { OrgCabinet } from "@/components/org/OrgCabinet";
 import { parseOrgTab, type OrgTab } from "@/components/org/tabs";
 import type { TastingStatus } from "@/lib/constants";
 import { buildInvite, getBaseUrl } from "@/lib/qr";
+import { getSessionOrganizer } from "@/lib/session";
 import * as tastingService from "@/services/tastingService";
 import * as wineService from "@/services/wineService";
 
@@ -31,7 +32,12 @@ export default async function OrgPage({ params, searchParams }: Props) {
   const tasting = await tastingService.findOrgTasting(adminKey);
   if (!tasting) notFound();
 
-  const [invite, catalog] = await Promise.all([buildInvite(tasting.inviteCode), wineService.search("")]);
+  const [invite, catalog, organizer] = await Promise.all([
+    buildInvite(tasting.inviteCode),
+    wineService.search(""),
+    getSessionOrganizer(),
+  ]);
+  const myTastings = organizer ? await tastingService.listByOwner(organizer.id) : null;
   const justCreated = query.created === "1";
   const base = getBaseUrl();
 
@@ -45,6 +51,8 @@ export default async function OrgPage({ params, searchParams }: Props) {
       justCreated={justCreated}
       cabinetUrl={base ? `${base}/org/${tasting.adminKey}` : null}
       resultsUrl={base ? `${base}/t/${tasting.inviteCode}/results` : null}
+      myTastings={myTastings}
+      owned={myTastings?.some((t) => t.adminKey === tasting.adminKey) ?? false}
     />
   );
 }

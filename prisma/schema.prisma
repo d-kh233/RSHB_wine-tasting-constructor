@@ -10,6 +10,15 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Organizer {
+  id           String   @id @default(cuid())
+  email        String   @unique // хранится в нижнем регистре
+  passwordHash String // bcrypt
+  createdAt    DateTime @default(now())
+
+  tastings Tasting[]
+}
+
 model Tasting {
   id           String    @id @default(cuid())
   title        String
@@ -23,15 +32,19 @@ model Tasting {
   inviteCode   String    @unique
   adminKey     String    @unique
   isDemo       Boolean   @default(false)
+  ownerId      String? // null — дегустация без аккаунта (демо, созданные до входа); доступ по adminKey
   startedAt    DateTime?
   closedAt     DateTime?
   publishedAt  DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
+  owner   Organizer?    @relation(fields: [ownerId], references: [id], onDelete: SetNull)
   wines   TastingWine[]
   guests  Guest[]
   ratings Rating[]
+
+  @@index([ownerId])
 }
 
 model Wine {

@@ -133,6 +133,18 @@ export function toOrgTastingDTO(t: OrgTastingSource): OrgTastingDTO {
   };
 }
 
+/** Строка списка «Мои дегустации» (только дегустации владельца). */
+export interface MyTastingDTO {
+  adminKey: string;
+  title: string;
+  status: TastingStatus;
+  isDemo: boolean;
+}
+
+export function toMyTastingDTO(t: Pick<Tasting, "adminKey" | "title" | "status" | "isDemo">): MyTastingDTO {
+  return { adminKey: t.adminKey, title: t.title, status: t.status as TastingStatus, isDemo: t.isDemo };
+}
+
 /* ---------- Гость (blind-safe) ---------- */
 
 /** Данные вина для гостя — только после раскрытия (или в открытом режиме). */

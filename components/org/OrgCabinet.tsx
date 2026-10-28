@@ -1,9 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/apiClient";
 import { POLL_INTERVAL_MS, TASTING_MODE_LABEL, TASTING_STATUS_LABEL } from "@/lib/constants";
-import type { OrgTastingDTO, WineDTO } from "@/lib/dto";
+import type { MyTastingDTO, OrgTastingDTO, WineDTO } from "@/lib/dto";
 import type { InviteInfo } from "@/lib/qr";
 import { SCALES } from "@/lib/scales";
 import { Alert } from "../ui/Alert";
@@ -35,6 +36,8 @@ export function OrgCabinet({
   justCreated,
   cabinetUrl,
   resultsUrl,
+  myTastings,
+  owned,
 }: {
   initial: OrgTastingDTO;
   invite: InviteInfo;
@@ -45,6 +48,10 @@ export function OrgCabinet({
   cabinetUrl: string | null;
   /** Абсолютная ссылка на итоги для гостей; null — NEXT_PUBLIC_BASE_URL не задан. */
   resultsUrl: string | null;
+  /** Дегустации аккаунта; null — организатор не вошёл. */
+  myTastings: MyTastingDTO[] | null;
+  /** Дегустация принадлежит вошедшему организатору. */
+  owned: boolean;
 }) {
   const [tasting, setTasting] = useState(initial);
   const [tab, setTab] = useState<OrgTab>(initialTab);
@@ -86,6 +93,7 @@ export function OrgCabinet({
         <Logo href="/" />
         <TastingSwitcher
           current={{ adminKey: tasting.adminKey, title: tasting.title, status: tasting.status, isDemo: tasting.isDemo }}
+          entries={myTastings}
         />
       </div>
 
@@ -104,13 +112,27 @@ export function OrgCabinet({
           <Alert tone="success" className="mt-4">
             <p className="font-medium">Дегустация создана.</p>
             <p className="mt-1">
-              Сохраните ссылку на этот кабинет — авторизация организатора в планах, другого входа пока нет.
+              {owned ? (
+                "Она сохранена в «Моих дегустациях». Ссылка на кабинет — резервный вход без пароля, не показывайте её гостям."
+              ) : (
+                <>
+                  Вы не вошли в аккаунт, поэтому попасть в кабинет можно только по этой ссылке — сохраните её.{" "}
+                  <Link href="/register" className="font-medium underline underline-offset-4">
+                    Зарегистрируйтесь
+                  </Link>
+                  , чтобы следующие дегустации хранились в аккаунте.
+                </>
+              )}
             </p>
             <CopyButton text={copyCabinetLink} label="Скопировать ссылку на кабинет" size="sm" className="mt-2" />
           </Alert>
         ) : (
           <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-muted">
-            <span>Вход в кабинет — только по этой ссылке, сохраните её. Авторизация в планах.</span>
+            <span>
+              {owned
+                ? "Дегустация в вашем аккаунте. Секретная ссылка — резервный вход без пароля."
+                : "Ссылка открывает кабинет без пароля — сохраните её и не показывайте гостям."}
+            </span>
             <CopyButton text={copyCabinetLink} label="Копировать ссылку" variant="ghost" size="sm" />
           </div>
         )}

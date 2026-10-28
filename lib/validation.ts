@@ -2,7 +2,18 @@
 // Диапазон значения оценки здесь НЕ проверяется: он зависит от шкалы дегустации → 422 в guestService.
 
 import { z } from "zod";
-import { EXPORT_SCHEMA_VERSION, EXPORT_SOURCE_SYSTEM, LIMITS, TASTING_ACTIONS, TASTING_MODES, WINE_ACTIONS, WINE_COLORS } from "./constants";
+import {
+  EMAIL_MAX,
+  EXPORT_SCHEMA_VERSION,
+  EXPORT_SOURCE_SYSTEM,
+  LIMITS,
+  PASSWORD_MAX,
+  PASSWORD_MIN,
+  TASTING_ACTIONS,
+  TASTING_MODES,
+  WINE_ACTIONS,
+  WINE_COLORS,
+} from "./constants";
 import { SCALE_IDS } from "./scales";
 
 /** Необязательный текст: обрезаем пробелы, пустую строку превращаем в null. */
@@ -31,6 +42,30 @@ const enumOf = <T extends string>(values: readonly T[], message: string) => z.en
 
 const mode = enumOf(TASTING_MODES, "режим: open или blind");
 const scale = enumOf(SCALE_IDS, "неизвестная шкала");
+
+/* ---------- Аккаунт организатора ---------- */
+
+const email = z
+  .string({ required_error: "укажите email" })
+  .trim()
+  .toLowerCase()
+  .max(EMAIL_MAX, "слишком длинный email")
+  .email("некорректный email");
+
+export const registerSchema = z.object({
+  email,
+  password: z
+    .string({ required_error: "придумайте пароль" })
+    .min(PASSWORD_MIN, `пароль — от ${PASSWORD_MIN} символов`)
+    .max(PASSWORD_MAX, `пароль — до ${PASSWORD_MAX} символов`),
+});
+
+// При входе длину пароля не проверяем: правило могло измениться после регистрации.
+export const loginSchema = z.object({
+  email,
+  password: z.string({ required_error: "введите пароль" }).min(1, "введите пароль").max(200),
+});
+export type CredentialsInput = z.infer<typeof loginSchema>;
 
 /* ---------- Организатор ---------- */
 

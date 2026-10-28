@@ -1,6 +1,7 @@
 // Дегустация глазами организатора: создание, настройки, программа, переходы статусов (PLAN.md §5),
 // раскрытие бутылок и сводка.
-// Доступ = знание adminKey. Все функции возвращают DTO, а не сущности Prisma.
+// Доступ к кабинету = знание adminKey (аккаунт организатора только даёт список своих дегустаций).
+// Все функции возвращают DTO, а не сущности Prisma.
 
 import type { Prisma, Tasting } from "@prisma/client";
 import { generateAdminKey, generateInviteCode } from "@/lib/auth";
@@ -19,7 +20,7 @@ import {
   type WineStatus,
 } from "@/lib/constants";
 import { db } from "@/lib/db";
-import { toOrgTastingDTO, toWineDTO, type OrgTastingDTO, type SummaryDTO } from "@/lib/dto";
+import { toMyTastingDTO, toOrgTastingDTO, toWineDTO, type MyTastingDTO, type OrgTastingDTO, type SummaryDTO } from "@/lib/dto";
 import { AppError, conflict, isUniqueViolation, notFound } from "@/lib/http";
 import type { ScaleId } from "@/lib/scales";
 import { groupBy, rankByScore, wineStats } from "@/lib/stats";
@@ -64,13 +65,33 @@ export async function getOrgTasting(adminKey: string): Promise<OrgTastingDTO> {
   return dto;
 }
 
+/** «Мои дегустации»: новые сверху. */
+export async function listByOwner(ownerId: string): Promise<MyTastingDTO[]> {
+  const rows = await db.tasting.findMany({
+    where: { ownerId },
+    select: { adminKey: true, title: true, status: true, isDemo: true },
+    orderBy: { createdAt: "desc" },
+  });
+  return rows.map(toMyTastingDTO);
+}
+
 /* ---------- Создание и настройки ---------- */
 
-export async function create(input: CreateTastingInput): Promise<{ id: string; adminKey: string; inviteCode: string }> {
+/** ownerId — организатор, если создаёт залогиненный; без аккаунта дегустация доступна только по adminKey. */
+export async function create(
+  input: CreateTastingInput,
+  ownerId: string | null,
+): Promise<{ id: string; adminKey: string; inviteCode: string }> {
   for (let attempt = 0; attempt < KEY_GENERATION_ATTEMPTS; attempt++) {
     try {
       const tasting = await db.tasting.create({
-        data: { ...input, status: TASTING_STATUS.DRAFT, adminKey: generateAdminKey(), inviteCode: generateInviteCode() },
+        data: {
+          ...input,
+          ownerId,
+          status: TASTING_STATUS.DRAFT,
+          adminKey: generateAdminKey(),
+          inviteCode: generateInviteCode(),
+        },
       });
       return { id: tasting.id, adminKey: tasting.adminKey, inviteCode: tasting.inviteCode };
     } catch (err) {

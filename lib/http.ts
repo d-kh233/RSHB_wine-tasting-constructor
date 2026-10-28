@@ -22,6 +22,7 @@ export const unauthorized = (message = "Сначала войдите в дег�
 export const notFound = (message = "Не найдено") => new AppError(404, "NOT_FOUND", message);
 export const conflict = (code: string, message: string) => new AppError(409, code, message);
 export const unprocessable = (code: string, message: string) => new AppError(422, code, message);
+export const tooManyRequests = (message: string) => new AppError(429, "TOO_MANY_REQUESTS", message);
 
 /** Нарушение UNIQUE в Prisma (P2002) — гонка, которую не поймала проверка в сервисе. */
 export function isUniqueViolation(err: unknown): boolean {
