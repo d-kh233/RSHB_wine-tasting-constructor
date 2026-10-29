@@ -5,6 +5,7 @@ import { Card } from "../ui/Card";
 import { Container } from "../ui/Container";
 import { Logo } from "../ui/Logo";
 import { AuthForm } from "./AuthForm";
+import { DemoLoginButton } from "./DemoLoginButton";
 
 /** Куда вернуться после входа: только локальный путь, иначе открытый редирект на чужой сайт. */
 function safeNext(next: string | undefined): string {
@@ -32,6 +33,14 @@ export async function AuthPage({ mode, next: rawNext }: { mode: "login" | "regis
         <Card raised className="mt-6">
           <AuthForm mode={mode} next={next} />
         </Card>
+        <div className="mt-6 flex items-center gap-3 text-sm text-ink-muted" aria-hidden>
+          <span className="h-px flex-1 bg-line" />
+          или
+          <span className="h-px flex-1 bg-line" />
+        </div>
+        <div className="mt-6">
+          <DemoLoginButton next={next} />
+        </div>
       </div>
     </Container>
   );

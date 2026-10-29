@@ -10,6 +10,7 @@ import { LocalDate } from "../ui/LocalDate";
 import { ProgressBar } from "../ui/ProgressBar";
 import { Stat } from "../ui/Stat";
 import { WineCard } from "../ui/WineCard";
+import { OrganizerLine } from "./OrganizerLine";
 
 /** Публичные итоги дегустации: места, средние и — если гость голосовал — его оценки рядом. */
 export function ResultsView({ results, inviteCode }: { results: PublicResultsDTO; inviteCode: string }) {
@@ -27,6 +28,7 @@ export function ResultsView({ results, inviteCode }: { results: PublicResultsDTO
       <header className="mb-6">
         <p className="text-xs font-medium uppercase tracking-wide text-ink-muted">Итоги · {SCALES[results.scale].label}</p>
         <h1 className="mt-1 break-words text-title">{results.title}</h1>
+        <OrganizerLine organizer={results.organizer} className="mt-1" />
         <p className="mt-1 text-sm text-ink-muted">
           {results.publishedAt && (
             <>

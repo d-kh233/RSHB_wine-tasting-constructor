@@ -8,8 +8,10 @@ import { SCALES } from "@/lib/scales";
 import { Container } from "../ui/Container";
 import { LocalDate } from "../ui/LocalDate";
 import { JoinForm } from "./JoinForm";
+import { OrganizerLine } from "./OrganizerLine";
 import { RatingForm } from "./RatingForm";
 import { RevealModal } from "./RevealResult";
+import { TastingCard } from "./TastingCard";
 import { ThankYou } from "./ThankYou";
 import { ratableWines, WineList } from "./WineList";
 
@@ -138,30 +140,26 @@ export function GuestApp({ initial }: { initial: GuestTastingDTO }) {
 
   return (
     <Container as="main" size="narrow" className="min-h-dvh pb-10 pt-6">
-      {showHeader && (
-        <header className="mb-6">
-          <p className="text-xs font-medium uppercase tracking-wide text-ink-muted">
-            {TASTING_MODE_LABEL[view.mode]} дегустация · {SCALES[view.scale].label}
-          </p>
-          <h1 className="mt-1 break-words text-title">{view.title}</h1>
-          {(view.startsAt || view.location) && (
-            <p className="mt-1 text-sm text-ink-muted">
-              {view.startsAt && <LocalDate iso={view.startsAt} />}
-              {view.startsAt && view.location && " · "}
-              {view.location}
+      {showHeader &&
+        (view.me ? (
+          <header className="mb-6">
+            <p className="text-xs font-medium uppercase tracking-wide text-ink-muted">
+              {TASTING_MODE_LABEL[view.mode]} дегустация · {SCALES[view.scale].label}
             </p>
-          )}
-          {!view.me && view.description && (
-            <p className="mt-3 whitespace-pre-line break-words text-sm text-ink">{view.description}</p>
-          )}
-          {!view.me && view.mode === "blind" && (
-            <p className="mt-3 text-sm text-ink-muted">
-              Это слепая дегустация: вы увидите только номера вин. Названия откроют в конце.
-            </p>
-          )}
-          {view.me?.displayName && <p className="mt-2 text-sm text-ink-muted">Вы вошли как {view.me.displayName}</p>}
-        </header>
-      )}
+            <h1 className="mt-1 break-words text-title">{view.title}</h1>
+            {(view.startsAt || view.location) && (
+              <p className="mt-1 text-sm text-ink-muted">
+                {view.startsAt && <LocalDate iso={view.startsAt} />}
+                {view.startsAt && view.location && " · "}
+                {view.location}
+              </p>
+            )}
+            <OrganizerLine organizer={view.organizer} className="mt-1" />
+            {view.me.displayName && <p className="mt-2 text-sm text-ink-muted">Вы вошли как {view.me.displayName}</p>}
+          </header>
+        ) : (
+          <TastingCard view={view} />
+        ))}
       {content}
       {view.me && <RevealModal view={view} wines={justRevealed} onClose={() => setJustRevealed([])} />}
     </Container>

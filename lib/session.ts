@@ -62,6 +62,7 @@ export function clearSessionCookie(res: NextResponse, req: Request) {
 export interface SessionOrganizer {
   id: string;
   email: string;
+  displayName: string;
 }
 
 /** Текущий организатор (server components и route handlers) или null. */
@@ -70,5 +71,5 @@ export async function getSessionOrganizer(): Promise<SessionOrganizer | null> {
   const id = token ? verifyToken(token) : null;
   if (!id) return null;
   // Аккаунт могли удалить из БД (на Render SQLite сбрасывается) — тогда токен уже ничего не значит.
-  return db.organizer.findUnique({ where: { id }, select: { id: true, email: true } });
+  return db.organizer.findUnique({ where: { id }, select: { id: true, email: true, displayName: true } });
 }

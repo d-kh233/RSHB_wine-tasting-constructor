@@ -20,14 +20,20 @@ export const STATUS_TONE: Record<MyTastingDTO["status"], BadgeTone> = {
 const linkClass = "font-medium text-primary underline-offset-4 hover:underline";
 
 /** Список дегустаций на главной: дегустации аккаунта; без входа — приглашение войти. */
-export function MyTastingsList({ email, entries }: { email: string | null; entries: MyTastingDTO[] }) {
+export function MyTastingsList({
+  organizer,
+  entries,
+}: {
+  organizer: { email: string; displayName: string } | null;
+  entries: MyTastingDTO[];
+}) {
   const router = useRouter();
   return (
     <section aria-labelledby="my-tastings">
       <h2 id="my-tastings" className="text-xl">
         Мои дегустации
       </h2>
-      {email === null ? (
+      {organizer === null ? (
         <p className="mt-1 text-sm text-ink-muted">
           <Link href="/login" className={linkClass}>
             Войдите
@@ -41,7 +47,10 @@ export function MyTastingsList({ email, entries }: { email: string | null; entri
       ) : (
         <>
           <p className="mt-1 flex flex-wrap gap-x-3 text-sm text-ink-muted">
-            <span className="min-w-0 break-all">{email}</span>
+            <span className="min-w-0 break-all">{organizer.displayName || organizer.email}</span>
+            <Link href="/profile" className={linkClass}>
+              Профиль
+            </Link>
             <LogoutButton />
           </p>
           {entries.length === 0 ? (
@@ -152,7 +161,12 @@ export function TastingSwitcher({ current, entries }: { current: MyTastingDTO; e
             <Link href="/new" className="font-medium text-primary underline-offset-4 hover:underline">
               + Новая дегустация
             </Link>
-            <LogoutButton />
+            <span className="flex gap-3">
+              <Link href="/profile" className="font-medium text-ink-muted underline-offset-4 hover:text-ink hover:underline">
+                Профиль
+              </Link>
+              <LogoutButton />
+            </span>
           </div>
         </div>
       )}

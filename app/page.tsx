@@ -78,7 +78,10 @@ export default async function HomePage() {
             <GuestCard />
           </div>
 
-          <MyTastingsList email={organizer?.email ?? null} entries={myTastings} />
+          <MyTastingsList
+            organizer={organizer ? { email: organizer.email, displayName: organizer.displayName } : null}
+            entries={myTastings}
+          />
 
           <section aria-labelledby="demo">
             <h2 id="demo" className="text-xl">

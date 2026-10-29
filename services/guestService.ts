@@ -18,6 +18,7 @@ import {
   toGuestRatingDTO,
   toGuestTastingDTO,
   toGuestTastingWineDTO,
+  toPublicOrganizerDTO,
   type GuestRatingDTO,
   type GuestTastingDTO,
   type GuestTastingWineSource,
@@ -30,11 +31,13 @@ import { formatScaleValue, getScale, isValidValue, type ScaleId } from "@/lib/sc
 import { groupBy, rankByScore, wineStats } from "@/lib/stats";
 import type { RateInput } from "@/lib/validation";
 
-async function findTasting(inviteCode: string): Promise<Tasting | null> {
-  return db.tasting.findUnique({ where: { inviteCode: normalizeInviteCode(inviteCode) } });
+const withOrganizer = { owner: { select: { displayName: true, organization: true, city: true } } } as const;
+
+async function findTasting(inviteCode: string) {
+  return db.tasting.findUnique({ where: { inviteCode: normalizeInviteCode(inviteCode) }, include: withOrganizer });
 }
 
-async function requireTasting(inviteCode: string): Promise<Tasting> {
+async function requireTasting(inviteCode: string) {
   const tasting = await findTasting(inviteCode);
   if (!tasting) throw notFound("Дегустация с таким кодом не найдена");
   return tasting;
@@ -270,6 +273,7 @@ export async function getResults(inviteCode: string, token: string | null): Prom
 
   return {
     title: tasting.title,
+    organizer: toPublicOrganizerDTO(tasting.owner),
     mode: tasting.mode as TastingMode,
     scale: tasting.scale as ScaleId,
     publishedAt: tasting.publishedAt?.toISOString() ?? null,

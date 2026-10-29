@@ -47,6 +47,14 @@ export function InvitePanel({ tasting, invite }: { tasting: OrgTastingDTO; invit
           >
             QR на весь экран
           </a>
+          <a
+            href={`/org/${tasting.adminKey}/print`}
+            target="_blank"
+            rel="noopener"
+            className={buttonClass({ variant: "secondary", block: true })}
+          >
+            Листок для печати (A4)
+          </a>
         </div>
       )}
 

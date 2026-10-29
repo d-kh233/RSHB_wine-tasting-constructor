@@ -11,7 +11,7 @@ function Leaf({ x, y, angle }: { x: number; y: number; angle: number }) {
  */
 export function Backdrop() {
   return (
-    <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-b from-bg to-bg-deep">
+    <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-b from-bg to-bg-deep print:hidden">
       <svg
         className="absolute inset-0 h-full w-full"
         style={{ color: "rgb(var(--pattern-color))", opacity: "var(--pattern-opacity)" }}

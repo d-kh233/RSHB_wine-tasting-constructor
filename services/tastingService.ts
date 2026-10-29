@@ -25,10 +25,12 @@ import { db } from "@/lib/db";
 import {
   toMyTastingDTO,
   toOrgTastingDTO,
+  toPublicOrganizerDTO,
   toWineDTO,
   type MyTastingDTO,
   type OrgGuestDTO,
   type OrgTastingDTO,
+  type PrintInfoDTO,
   type SummaryDTO,
 } from "@/lib/dto";
 import { AppError, conflict, isUniqueViolation, notFound } from "@/lib/http";
@@ -73,6 +75,22 @@ export async function getOrgTasting(adminKey: string): Promise<OrgTastingDTO> {
   const dto = await findOrgTasting(adminKey);
   if (!dto) throw notFound("Ссылка организатора недействительна");
   return dto;
+}
+
+/** Листок для печати: название, место, организатор и код — всё, что гость увидит и на экране входа. */
+export async function findPrintInfo(adminKey: string): Promise<PrintInfoDTO | null> {
+  const tasting = await db.tasting.findUnique({
+    where: { adminKey },
+    include: { owner: { select: { displayName: true, organization: true, city: true } } },
+  });
+  if (!tasting) return null;
+  return {
+    title: tasting.title,
+    location: tasting.location,
+    startsAt: tasting.startsAt?.toISOString() ?? null,
+    inviteCode: tasting.inviteCode,
+    organizer: toPublicOrganizerDTO(tasting.owner),
+  };
 }
 
 /** «Мои дегустации»: новые сверху. */

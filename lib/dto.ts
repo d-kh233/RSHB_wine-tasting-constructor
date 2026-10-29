@@ -2,7 +2,7 @@
 // Мапперы собирают объекты ЯВНЫМ списком полей (никаких spread), чтобы в ответ
 // случайно не попали adminKey, tokenHash или данные нераскрытого вина.
 
-import type { Guest, Rating, Tasting, TastingWine, Wine } from "@prisma/client";
+import type { Guest, Organizer, Rating, Tasting, TastingWine, Wine } from "@prisma/client";
 import {
   blindWineLabel,
   TASTING_MODE,
@@ -161,6 +161,54 @@ export interface OrgGuestDTO {
   ratings: { id: string; tastingWineId: string; position: number; value: number }[];
 }
 
+/* ---------- Профиль организатора ---------- */
+
+/** Профиль для самого организатора: без email и пароля — они в сессии. */
+export interface ProfileDTO {
+  displayName: string;
+  organization: string | null;
+  city: string | null;
+  bio: string | null;
+}
+
+export function toProfileDTO(o: Pick<Organizer, "displayName" | "organization" | "city" | "bio">): ProfileDTO {
+  return { displayName: o.displayName, organization: o.organization, city: o.city, bio: o.bio };
+}
+
+export interface ProfileStatsDTO {
+  tastingsTotal: number;
+  /** Завершённые и опубликованные. */
+  tastingsConducted: number;
+  guests: number;
+  ratings: number;
+  /** Оценки из дегустаций организатора, принятые в «Народный рейтинг». */
+  sentToRating: number;
+}
+
+/** Организатор глазами гостя: только то, что он сам решил показать (никаких email и id). */
+export interface PublicOrganizerDTO {
+  name: string;
+  organization: string | null;
+  city: string | null;
+}
+
+export type OrganizerSource = Pick<Organizer, "displayName" | "organization" | "city">;
+
+export function toPublicOrganizerDTO(o: OrganizerSource | null | undefined): PublicOrganizerDTO | null {
+  // У аккаунтов, созданных до профиля, имя берётся из email при миграции; пустое — значит показывать нечего.
+  if (!o || !o.displayName) return null;
+  return { name: o.displayName, organization: o.organization, city: o.city };
+}
+
+/** Данные печатной страницы с QR. */
+export interface PrintInfoDTO {
+  title: string;
+  location: string | null;
+  startsAt: string | null;
+  inviteCode: string;
+  organizer: PublicOrganizerDTO | null;
+}
+
 /** Строка списка «Мои дегустации» (только дегустации владельца). */
 export interface MyTastingDTO {
   adminKey: string;
@@ -220,6 +268,8 @@ export interface GuestTastingDTO {
   notesEnabled: boolean;
   status: TastingStatus;
   inviteCode: string;
+  /** null — дегустация создана без аккаунта. */
+  organizer: PublicOrganizerDTO | null;
   wines: GuestTastingWineDTO[];
   /** null — гость ещё не вошёл (нет cookie). */
   me: { displayName: string | null } | null;
@@ -275,7 +325,7 @@ export function toGuestRatingDTO(r: Rating): GuestRatingDTO {
 }
 
 export function toGuestTastingDTO(
-  tasting: Tasting,
+  tasting: Tasting & { owner?: OrganizerSource | null },
   wines: GuestTastingWineSource[],
   guest: Guest | null,
   ratings: Rating[],
@@ -291,6 +341,7 @@ export function toGuestTastingDTO(
     notesEnabled: tasting.notesEnabled,
     status: tasting.status as TastingStatus,
     inviteCode: tasting.inviteCode,
+    organizer: toPublicOrganizerDTO(tasting.owner),
     wines: [...wines].sort((a, b) => a.position - b.position).map((tw) => toGuestTastingWineDTO(tasting, tw, results)),
     me: guest ? { displayName: guest.displayName } : null,
     myRatings: guest ? ratings.filter((r) => r.guestId === guest.id).map(toGuestRatingDTO) : [],
@@ -362,6 +413,7 @@ export interface ResultRowDTO {
 
 export interface PublicResultsDTO {
   title: string;
+  organizer: PublicOrganizerDTO | null;
   mode: TastingMode;
   scale: ScaleId;
   publishedAt: string | null;

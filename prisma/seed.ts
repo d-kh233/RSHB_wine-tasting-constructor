@@ -5,8 +5,19 @@
 //
 // Демо-вина — реальные. Поля, в которых нет уверенности (год, цена, иногда сорт), — null.
 
+import { randomBytes } from "node:crypto";
 import { PrismaClient, type Prisma } from "@prisma/client";
-import { DEMO_ADMIN_KEY, DEMO_INVITE_CODE, TASTING_MODE, TASTING_STATUS, WINE_COLOR } from "../lib/constants";
+import bcrypt from "bcryptjs";
+import {
+  BCRYPT_ROUNDS,
+  DEMO_ADMIN_KEY,
+  DEMO_INVITE_CODE,
+  DEMO_ORGANIZER_EMAIL,
+  DEMO_ORGANIZER_PROFILE,
+  TASTING_MODE,
+  TASTING_STATUS,
+  WINE_COLOR,
+} from "../lib/constants";
 import { SCALE_ID } from "../lib/scales";
 
 const db = new PrismaClient();
@@ -131,9 +142,21 @@ async function main() {
     );
   }
 
+  // Демо-организатор: войти можно только кнопкой «Войти как демо-организатор» — пароль случайный и нигде не хранится.
+  const demoOrganizer = await db.organizer.upsert({
+    where: { email: DEMO_ORGANIZER_EMAIL },
+    create: {
+      email: DEMO_ORGANIZER_EMAIL,
+      passwordHash: await bcrypt.hash(randomBytes(32).toString("hex"), BCRYPT_ROUNDS),
+      ...DEMO_ORGANIZER_PROFILE,
+    },
+    update: {},
+  });
+
   const tasting = await db.tasting.upsert({
     where: { inviteCode: DEMO_INVITE_CODE },
     create: {
+      ownerId: demoOrganizer.id,
       title: DEMO_TITLE,
       description: DEMO_DESCRIPTION,
       mode: TASTING_MODE.BLIND,
@@ -146,6 +169,9 @@ async function main() {
     },
     update: {},
   });
+
+  // Демо-дегустация, созданная до появления демо-организатора, закрепляется за ним.
+  await db.tasting.updateMany({ where: { id: tasting.id, ownerId: null }, data: { ownerId: demoOrganizer.id } });
 
   const programSize = await db.tastingWine.count({ where: { tastingId: tasting.id } });
   if (programSize === 0) {

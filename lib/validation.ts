@@ -52,13 +52,31 @@ const email = z
   .max(EMAIL_MAX, "слишком длинный email")
   .email("некорректный email");
 
+/** Публичные данные организатора — гости видят их как «Организатор: …». */
+const organizerProfileFields = {
+  displayName: z
+    .string({ required_error: "укажите имя для гостей" })
+    .trim()
+    .min(LIMITS.ORGANIZER_NAME_MIN, `имя — от ${LIMITS.ORGANIZER_NAME_MIN} символов`)
+    .max(LIMITS.ORGANIZER_NAME_MAX, `имя — до ${LIMITS.ORGANIZER_NAME_MAX} символов`),
+  organization: optionalText(LIMITS.ORGANIZER_ORG_MAX),
+  city: optionalText(LIMITS.ORGANIZER_CITY_MAX),
+  bio: optionalText(LIMITS.ORGANIZER_BIO_MAX),
+};
+
 export const registerSchema = z.object({
   email,
   password: z
     .string({ required_error: "придумайте пароль" })
     .min(PASSWORD_MIN, `пароль — от ${PASSWORD_MIN} символов`)
     .max(PASSWORD_MAX, `пароль — до ${PASSWORD_MAX} символов`),
+  ...organizerProfileFields,
+  consent: z.literal(true, { errorMap: () => ({ message: "нужно согласие на обработку данных" }) }),
 });
+export type RegisterInput = z.infer<typeof registerSchema>;
+
+export const profileSchema = z.object(organizerProfileFields);
+export type ProfileInput = z.infer<typeof profileSchema>;
 
 // При входе длину пароля не проверяем: правило могло измениться после регистрации.
 export const loginSchema = z.object({

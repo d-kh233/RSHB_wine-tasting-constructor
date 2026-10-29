@@ -110,6 +110,11 @@ export const LIMITS = {
   DESCRIPTION_MAX: 1000,
   LOCATION_MAX: 200,
   DISPLAY_NAME_MAX: 40,
+  ORGANIZER_NAME_MIN: 2,
+  ORGANIZER_NAME_MAX: 60,
+  ORGANIZER_ORG_MAX: 80,
+  ORGANIZER_CITY_MAX: 60,
+  ORGANIZER_BIO_MAX: 200,
   NOTE_MAX: 500,
   WINE_NAME_MIN: 2,
   WINE_NAME_MAX: 160,
@@ -152,6 +157,14 @@ export const BCRYPT_ROUNDS = 10;
 /** Неудачных входов на пару «IP + email» за окно, потом 429. */
 export const LOGIN_MAX_FAILURES = 5;
 export const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+/** Демо-аккаунт: вход одной кнопкой без пароля (его создаёт seed или первый вход). Регистрировать этот email нельзя. */
+export const DEMO_ORGANIZER_EMAIL = "demo@wine-tasting.local";
+export const DEMO_ORGANIZER_PROFILE = {
+  displayName: "Демо-организатор",
+  organization: "Конструктор дегустаций",
+  city: null,
+  bio: "Публичный демо-аккаунт для знакомства с сервисом.",
+} as const;
 
 /* ---------- Лимиты запросов гостя (по IP + inviteCode, в памяти процесса) ----------
  * На дегустации гости часто сидят в одной Wi-Fi за одним внешним IP, поэтому лимиты рассчитаны
