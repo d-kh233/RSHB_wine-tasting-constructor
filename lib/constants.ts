@@ -169,7 +169,7 @@ export const DEMO_ACCOUNT_LIMITS = {
 } as const;
 export const DEMO_ORGANIZER_PROFILE = {
   displayName: "Демо-организатор",
-  organization: "Конструктор дегустаций",
+  organization: "DaVino",
   city: null,
   bio: "Публичный демо-аккаунт для знакомства с сервисом.",
 } as const;

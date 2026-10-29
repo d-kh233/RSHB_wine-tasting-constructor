@@ -2,7 +2,7 @@
   "name": "wine-tasting-constructor",
   "version": "0.1.0",
   "private": true,
-  "description": "Конструктор дегустаций — кейс РСХБ",
+  "description": "DaVino — конструктор дегустаций, кейс РСХБ",
   "engines": {
     "node": ">=20"
   },

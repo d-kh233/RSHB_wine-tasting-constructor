@@ -150,7 +150,7 @@ async function main() {
       passwordHash: await bcrypt.hash(randomBytes(32).toString("hex"), BCRYPT_ROUNDS),
       ...DEMO_ORGANIZER_PROFILE,
     },
-    update: {},
+    update: { ...DEMO_ORGANIZER_PROFILE },
   });
 
   const tasting = await db.tasting.upsert({

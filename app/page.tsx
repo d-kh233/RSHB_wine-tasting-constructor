@@ -49,7 +49,7 @@ export default async function HomePage() {
       {/* Телефон: промо → выбор роли → иллюстрация. Десктоп: промо и иллюстрация слева, выбор роли справа. */}
       <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
         <section className="min-w-0 lg:col-start-1 lg:row-start-1">
-          <Logo withWordmark={false} size="lg" />
+          <Logo size="lg" />
           <h1 className="mt-6 text-display">Конструктор дегустаций</h1>
           <p className="mt-4 max-w-xl text-ink-muted">
             Открытая или слепая дегустация за пять минут: вина из каталога, понятная шкала, гости оценивают с телефона,

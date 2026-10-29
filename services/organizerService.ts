@@ -52,7 +52,7 @@ export async function loginDemo(): Promise<SessionOrganizer> {
       passwordHash: await bcrypt.hash(randomBytes(32).toString("hex"), BCRYPT_ROUNDS),
       ...DEMO_ORGANIZER_PROFILE,
     },
-    update: {},
+    update: { ...DEMO_ORGANIZER_PROFILE },
     select: sessionSelect,
   });
   await db.tasting.updateMany({ where: { isDemo: true, ownerId: null }, data: { ownerId: organizer.id } });

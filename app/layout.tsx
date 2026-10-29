@@ -3,7 +3,8 @@ import { Backdrop } from "@/components/ui/Backdrop";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Конструктор дегустаций",
+  title: { default: "DaVino — конструктор дегустаций", template: "%s · DaVino" },
+  applicationName: "DaVino",
   description: "Открытые и слепые дегустации вина: QR-вход для гостей, оценки, итоги и передача в Народный винный рейтинг.",
 };
 
