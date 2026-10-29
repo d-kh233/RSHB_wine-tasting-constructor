@@ -28,6 +28,7 @@ model Tasting {
   mode         String // TASTING_MODE: open | blind
   scale        String // SCALE_ID: points100 | stars5 | points10
   notesEnabled Boolean   @default(true)
+  minGuests    Int       @default(0) // оценки вина уходят в рейтинг, только если его оценили не меньше N гостей
   status       String    @default("draft") // TASTING_STATUS: draft | running | closed | published
   inviteCode   String    @unique
   adminKey     String    @unique
@@ -41,8 +42,9 @@ model Tasting {
 
   owner   Organizer?    @relation(fields: [ownerId], references: [id], onDelete: SetNull)
   wines   TastingWine[]
-  guests  Guest[]
-  ratings Rating[]
+  guests          Guest[]
+  ratings         Rating[]
+  rejectedRatings RejectedRating[]
 
   @@index([ownerId])
 }
@@ -92,8 +94,9 @@ model Guest {
   tokenHash   String   @unique // sha256 от токена из cookie; сам токен не храним
   createdAt   DateTime @default(now())
 
-  tasting Tasting  @relation(fields: [tastingId], references: [id], onDelete: Cascade)
-  ratings Rating[]
+  tasting         Tasting          @relation(fields: [tastingId], references: [id], onDelete: Cascade)
+  ratings         Rating[]
+  rejectedRatings RejectedRating[]
 
   @@index([tastingId])
 }
@@ -114,6 +117,23 @@ model Rating {
 
   // Антидубли: один гость — одна оценка на вино
   @@unique([guestId, tastingWineId])
+  @@index([tastingId])
+}
+
+/// Журнал отброшенных попыток оценить — для таблицы «Отброшенные оценки» в «Итогах».
+/// tastingWineId — как прислал клиент (может не быть в программе), поэтому без связи.
+model RejectedRating {
+  id            String   @id @default(cuid())
+  tastingId     String
+  guestId       String? // null — гость удалён организатором
+  tastingWineId String
+  value         Float?
+  reason        String // RATING_REJECT_REASON
+  createdAt     DateTime @default(now())
+
+  tasting Tasting @relation(fields: [tastingId], references: [id], onDelete: Cascade)
+  guest   Guest?  @relation(fields: [guestId], references: [id], onDelete: SetNull)
+
   @@index([tastingId])
 }
 

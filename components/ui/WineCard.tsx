@@ -61,7 +61,7 @@ export function WineCard({
           ) : (
             <>
               <p className="font-medium text-ink">{label}</p>
-              <p className="text-sm text-ink-muted">Название откроют после дегустации</p>
+              <p className="text-sm text-ink-muted">Название откроют после закрытия голосования</p>
             </>
           )}
           {(badges || wine?.color) && (

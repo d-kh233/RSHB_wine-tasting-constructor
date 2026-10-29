@@ -118,6 +118,11 @@ export const LIMITS = {
   CATALOG_SEARCH_LIMIT: 50,
   EXPORT_MAX_WINES: 200,
   EXPORT_MAX_RATINGS: 20000,
+  MIN_GUESTS_MAX: 100,
+  /** Сколько отброшенных попыток храним на дегустацию — журнал не должен расти от спама. */
+  REJECTED_LOG_MAX: 1000,
+  /** Сколько последних отброшенных показываем в «Итогах». */
+  REJECTED_SHOW_MAX: 200,
 } as const;
 
 /* ---------- Ключи и коды ---------- */
@@ -148,6 +153,13 @@ export const BCRYPT_ROUNDS = 10;
 export const LOGIN_MAX_FAILURES = 5;
 export const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 
+/* ---------- Лимиты запросов гостя (по IP + inviteCode, в памяти процесса) ----------
+ * На дегустации гости часто сидят в одной Wi-Fi за одним внешним IP, поэтому лимиты рассчитаны
+ * на зал целиком: 30 гостей входят за минуту и оценивают по вину. Бот, долбящий API, упирается быстро. */
+
+export const GUEST_JOIN_LIMIT = { max: 30, windowMs: 60 * 1000 } as const;
+export const GUEST_RATE_LIMIT = { max: 60, windowMs: 60 * 1000 } as const;
+
 /** Интервал поллинга для экранов «Проведение» и анкеты гостя. */
 export const POLL_INTERVAL_MS = 5000;
 
@@ -159,7 +171,9 @@ export const DEMO_INVITE_CODE = "DEGUST";
 
 /* ---------- Экспорт в рейтинг ---------- */
 
-export const EXPORT_SCHEMA_VERSION = "1.0";
+export const EXPORT_SCHEMA_VERSION = "1.1";
+/** Версии, которые принимает импорт: 1.0 — без scale и normalized5 в оценках. */
+export const IMPORT_SCHEMA_VERSIONS = ["1.0", "1.1"] as const;
 export const EXPORT_SOURCE_SYSTEM = "wine-tasting-constructor";
 /** Длина анонимного guestHash и хвоста exportId (hex-символов sha256). */
 export const EXPORT_HASH_LENGTH = 32;
@@ -175,6 +189,7 @@ export const REJECT_REASON = {
   NORMALIZATION_MISMATCH: "NORMALIZATION_MISMATCH",
   DUPLICATE_IN_EXPORT: "DUPLICATE_IN_EXPORT",
   ALREADY_IMPORTED: "ALREADY_IMPORTED",
+  BELOW_MIN_GUESTS: "BELOW_MIN_GUESTS",
 } as const;
 export type RejectReason = (typeof REJECT_REASON)[keyof typeof REJECT_REASON];
 
@@ -186,6 +201,30 @@ export const REJECT_REASON_LABEL: Record<RejectReason, string> = {
   NORMALIZATION_MISMATCH: "normalized100 не совпадает с пересчётом",
   DUPLICATE_IN_EXPORT: "повтор оценки гостя в одном экспорте",
   ALREADY_IMPORTED: "оценка уже есть в рейтинге",
+  BELOW_MIN_GUESTS: "вино оценило меньше гостей, чем задано минимумом",
 };
+/** Причины, по которым гостю отказали в оценке, — журнал RejectedRating и таблица в «Итогах». */
+export const RATING_REJECT_REASON = {
+  OUT_OF_RANGE: "OUT_OF_RANGE",
+  AFTER_CLOSE: "AFTER_CLOSE",
+  NOT_OPEN: "NOT_OPEN",
+  DUPLICATE: "DUPLICATE",
+  NOT_IN_PROGRAM: "NOT_IN_PROGRAM",
+} as const;
+export type RatingRejectReason = (typeof RATING_REJECT_REASON)[keyof typeof RATING_REJECT_REASON];
+
+export const RATING_REJECT_REASON_LABEL: Record<RatingRejectReason, string> = {
+  OUT_OF_RANGE: "вне диапазона",
+  AFTER_CLOSE: "после закрытия",
+  NOT_OPEN: "вино ещё не открыто",
+  DUPLICATE: "дубль",
+  NOT_IN_PROGRAM: "вино не в программе",
+};
+
+/* ---------- Народный рейтинг ---------- */
+
+/** Вино получает место в /rating, только если у него не меньше стольких оценок; иначе — «Мало оценок». */
+export const MIN_RATINGS_FOR_RATING = 3;
+
 /** Знаков после запятой для normalized100 и средних — одно место округления. */
 export const SCORE_DECIMALS = 1;

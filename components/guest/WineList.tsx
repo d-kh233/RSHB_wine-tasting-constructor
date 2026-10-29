@@ -6,6 +6,7 @@ import { Badge } from "../ui/Badge";
 import { buttonClass } from "../ui/Button";
 import { cx } from "../ui/cx";
 import { WineCard } from "../ui/WineCard";
+import { RevealLine } from "./RevealResult";
 
 /** Открытые и ещё не оценённые гостем вина — их можно оценить прямо сейчас. */
 export function ratableWines(view: GuestTastingDTO): GuestTastingWineDTO[] {
@@ -19,8 +20,8 @@ function StatusBanner({ view, ratableCount }: { view: GuestTastingDTO; ratableCo
     case "draft":
       return (
         <Alert tone="info">
-          Дегустация ещё не началась. Как только организатор откроет первое вино, оно появится здесь — обновлять страницу
-          не нужно.
+          <p className="font-medium">Ждём, пока организатор откроет голосование</p>
+          <p className="mt-1">Дегустация ещё не началась. Первое вино появится здесь само — обновлять страницу не нужно.</p>
         </Alert>
       );
     case "closed":
@@ -28,7 +29,7 @@ function StatusBanner({ view, ratableCount }: { view: GuestTastingDTO; ratableCo
         <Alert tone="info">
           Приём оценок завершён.{" "}
           {view.mode === "blind"
-            ? "Организатор раскрывает бутылки — названия появятся прямо в списке. "
+            ? "Организатор раскрывает бутылки — названия, ваша оценка и среднее появятся прямо в списке. "
             : ""}
           Итоги появятся после публикации.
         </Alert>
@@ -40,7 +41,7 @@ function StatusBanner({ view, ratableCount }: { view: GuestTastingDTO; ratableCo
       const allDone = view.wines.length > 0 && view.myRatings.length >= view.wines.length;
       return (
         <Alert tone={allDone ? "success" : "info"}>
-          {allDone ? "Вы оценили все вина. Спасибо!" : "Ждём следующее вино — список обновится сам."}
+          {allDone ? "Вы оценили все вина. Спасибо!" : "Ждём, пока организатор откроет голосование. Список обновится сам."}
         </Alert>
       );
     }
@@ -105,6 +106,7 @@ export function WineList({ view, onRate }: { view: GuestTastingDTO; onRate: (tas
                       )
                     }
                   >
+                    <RevealLine view={view} wine={w} rating={rating} />
                     {rating?.note && <p className="mt-2 break-words text-sm italic text-ink-muted">«{rating.note}»</p>}
                   </WineCard>
                 </li>

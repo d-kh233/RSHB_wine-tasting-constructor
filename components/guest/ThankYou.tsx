@@ -1,6 +1,7 @@
 import type { GuestRatingDTO, GuestTastingDTO, GuestTastingWineDTO } from "@/lib/dto";
 import { formatScaleValue } from "@/lib/scales";
 import { Button } from "../ui/Button";
+import { RevealLine } from "./RevealResult";
 
 export function ThankYou({
   view,
@@ -29,7 +30,8 @@ export function ThankYou({
       >
         ✓
       </div>
-      <h1 className="mt-6 text-title">{repeated ? "Оценка уже сохранена" : "Спасибо!"}</h1>
+      <h1 className="mt-6 text-title">{repeated ? "Оценка уже сохранена" : "Оценка отправлена"}</h1>
+      <p className="mt-1 text-sm font-medium text-ink">Изменить её нельзя.</p>
       <p className="mt-2 text-ink-muted">
         {wine.wine ? wine.wine.name : wine.label}
         {rating && (
@@ -40,6 +42,7 @@ export function ThankYou({
         )}
       </p>
       {repeated && <p className="mt-1 text-sm text-ink-muted">Повторно проголосовать за одно вино нельзя.</p>}
+      {rating && <RevealLine view={view} wine={wine} rating={rating} />}
       {rating?.note && <p className="mt-3 max-w-sm break-words text-sm italic text-ink-muted">«{rating.note}»</p>}
 
       <div className="mt-8 w-full space-y-2">

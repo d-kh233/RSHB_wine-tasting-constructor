@@ -13,6 +13,7 @@ import { Card } from "../ui/Card";
 import { ConfirmModal } from "../ui/ConfirmModal";
 import { ProgressBar } from "../ui/ProgressBar";
 import { WineCard } from "../ui/WineCard";
+import { GuestsPanel } from "./GuestsPanel";
 import { InvitePanel } from "./InvitePanel";
 import { useOrgAction } from "./useOrgAction";
 
@@ -46,6 +47,11 @@ export function LiveControl({
     run(action, () => api<OrgTastingDTO>(`${base}/status`, { body: { action } }));
   const wineAction = (tw: OrgTastingWineDTO, action: WineAction) =>
     run(`${tw.id}:${action}`, () => api<OrgTastingDTO>(`${base}/wines/${tw.id}/status`, { body: { action } }));
+  const reveal = (tw: OrgTastingWineDTO) =>
+    run(`${tw.id}:reveal`, () => api<OrgTastingDTO>(`${base}/wines/${tw.id}/reveal`, { method: "POST" }));
+  // «Раскрыть №N» — в слепой дегустации, как только голосование по вину закрыто.
+  const revealable = (tw: OrgTastingWineDTO) =>
+    tasting.mode === "blind" && tw.status === "closed" && !tw.revealed && (running || tasting.status === "closed");
 
   const openCount = tasting.wines.filter((w) => w.status === "open").length;
 
@@ -117,8 +123,27 @@ export function LiveControl({
                   label={tw.label}
                   wine={tw.wine}
                   highlighted={tw.status === "open"}
-                  badges={<Badge tone={WINE_TONE[tw.status]}>{WINE_STATUS_LABEL[tw.status]}</Badge>}
-                  actions={running && <WineActions tw={tw} busy={busy} onAction={(a) => wineAction(tw, a)} />}
+                  badges={
+                    <>
+                      <Badge tone={WINE_TONE[tw.status]}>{WINE_STATUS_LABEL[tw.status]}</Badge>
+                      {tasting.mode === "blind" && tw.revealed && <Badge tone="primary">раскрыто</Badge>}
+                    </>
+                  }
+                  actions={
+                    revealable(tw) ? (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => reveal(tw)}
+                        loading={busy === `${tw.id}:reveal`}
+                        disabled={busy !== null}
+                      >
+                        Раскрыть №{tw.position}
+                      </Button>
+                    ) : (
+                      running && <WineActions tw={tw} busy={busy} onAction={(a) => wineAction(tw, a)} />
+                    )
+                  }
                 >
                   {tasting.status !== "draft" && <VoteMeter votes={tw.ratingsCount} guests={tasting.guestsCount} />}
                 </WineCard>
@@ -131,6 +156,8 @@ export function LiveControl({
             </Alert>
           )}
         </section>
+
+        <GuestsPanel tasting={tasting} onChange={onChange} />
       </div>
 
       <ConfirmModal

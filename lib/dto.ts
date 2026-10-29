@@ -6,6 +6,7 @@ import type { Guest, Rating, Tasting, TastingWine, Wine } from "@prisma/client";
 import {
   blindWineLabel,
   TASTING_MODE,
+  type RatingRejectReason,
   type TastingMode,
   type TastingStatus,
   type WineColor,
@@ -83,6 +84,7 @@ export interface OrgTastingDTO {
   mode: TastingMode;
   scale: ScaleId;
   notesEnabled: boolean;
+  minGuests: number;
   status: TastingStatus;
   inviteCode: string;
   adminKey: string;
@@ -106,6 +108,7 @@ export function toOrgTastingDTO(t: OrgTastingSource): OrgTastingDTO {
     mode: t.mode as TastingMode,
     scale: t.scale as ScaleId,
     notesEnabled: t.notesEnabled,
+    minGuests: t.minGuests,
     status: t.status as TastingStatus,
     inviteCode: t.inviteCode,
     adminKey: t.adminKey,
@@ -131,6 +134,14 @@ export function toOrgTastingDTO(t: OrgTastingSource): OrgTastingDTO {
         wine: toWineDTO(tw.wine),
       })),
   };
+}
+
+/** Гость в кабинете «Проведение»: имя и его оценки (для удаления). */
+export interface OrgGuestDTO {
+  id: string;
+  displayName: string | null;
+  createdAt: string;
+  ratings: { id: string; tastingWineId: string; position: number; value: number }[];
 }
 
 /** Строка списка «Мои дегустации» (только дегустации владельца). */
@@ -169,6 +180,8 @@ export interface GuestTastingWineDTO {
   /** true — данные вина видны гостю (открытый режим или бутылка раскрыта). */
   revealed: boolean;
   wine: GuestWineInfoDTO | null;
+  /** Среднее по вину — только после раскрытия бутылки (слепой режим), иначе null. */
+  result: { avg: number; count: number } | null;
 }
 
 export interface GuestRatingDTO {
@@ -211,7 +224,14 @@ function toGuestWineInfo(w: Wine): GuestWineInfoDTO {
   };
 }
 
-export function toGuestTastingWineDTO(mode: string, tw: GuestTastingWineSource): GuestTastingWineDTO {
+/** Среднее по вину для гостя: сервис считает его только для раскрытых бутылок. */
+export type WineResultById = Map<string, { avg: number; count: number }>;
+
+export function toGuestTastingWineDTO(
+  mode: string,
+  tw: GuestTastingWineSource,
+  results?: WineResultById,
+): GuestTastingWineDTO {
   const revealed = isWineVisibleToGuest(mode, tw.revealedAt);
   return {
     id: tw.id,
@@ -221,6 +241,7 @@ export function toGuestTastingWineDTO(mode: string, tw: GuestTastingWineSource):
     revealed,
     // Двойная защита: даже если сервис по ошибке подгрузил вино, нераскрытое не отдаём.
     wine: revealed && tw.wine ? toGuestWineInfo(tw.wine) : null,
+    result: tw.revealedAt !== null ? (results?.get(tw.id) ?? null) : null,
   };
 }
 
@@ -238,6 +259,7 @@ export function toGuestTastingDTO(
   wines: GuestTastingWineSource[],
   guest: Guest | null,
   ratings: Rating[],
+  results?: WineResultById,
 ): GuestTastingDTO {
   return {
     title: tasting.title,
@@ -249,7 +271,7 @@ export function toGuestTastingDTO(
     notesEnabled: tasting.notesEnabled,
     status: tasting.status as TastingStatus,
     inviteCode: tasting.inviteCode,
-    wines: [...wines].sort((a, b) => a.position - b.position).map((tw) => toGuestTastingWineDTO(tasting.mode, tw)),
+    wines: [...wines].sort((a, b) => a.position - b.position).map((tw) => toGuestTastingWineDTO(tasting.mode, tw, results)),
     me: guest ? { displayName: guest.displayName } : null,
     myRatings: guest ? ratings.filter((r) => r.guestId === guest.id).map(toGuestRatingDTO) : [],
   };
@@ -273,6 +295,19 @@ export interface SummaryWineDTO {
   avg100: number | null;
   /** Заметки гостей без имён. */
   notes: string[];
+  /** Оценок меньше, чем «минимум гостей», — в рейтинг оценки этого вина не уйдут. */
+  belowMinGuests: boolean;
+}
+
+/** Отброшенная попытка оценить (журнал RejectedRating). */
+export interface RejectedRatingDTO {
+  id: string;
+  /** null — вина нет в программе. */
+  position: number | null;
+  guestName: string | null;
+  value: number | null;
+  reason: RatingRejectReason;
+  createdAt: string;
 }
 
 export interface SummaryDTO {
@@ -281,6 +316,12 @@ export interface SummaryDTO {
   guestsCount: number;
   totalRatings: number;
   wines: SummaryWineDTO[];
+  minGuests: number;
+  /** Сохранённые оценки, которые уйдут в рейтинг (шкала совпадает, значение в диапазоне, минимум гостей набран). */
+  validRatings: number;
+  rejectedTotal: number;
+  /** Последние отброшенные, новые сверху (не больше LIMITS.REJECTED_SHOW_MAX). */
+  rejected: RejectedRatingDTO[];
 }
 
 /* ---------- Публичные итоги дегустации ---------- */
@@ -312,7 +353,7 @@ export interface PublicResultsDTO {
  * дегустации), чтобы выгрузка до и после публикации давала тот же payload и тот же exportId. */
 
 export interface RatingExportV1 {
-  schemaVersion: "1.0";
+  schemaVersion: "1.1";
   exportId: string;
   source: {
     system: "wine-tasting-constructor";
@@ -338,8 +379,11 @@ export interface RatingExportV1 {
   ratings: {
     guestHash: string;
     tastingWineId: string;
+    /** Исходная оценка в шкале дегустации. */
     value: number;
+    scale: ScaleId;
     normalized100: number;
+    normalized5: number;
   }[];
   stats: {
     totalRatings: number;
@@ -358,7 +402,8 @@ export interface ImportResultDTO {
 }
 
 export interface PublicRatingRowDTO {
-  place: number;
+  /** null — оценок меньше MIN_RATINGS_FOR_RATING, места нет («Мало оценок»). */
+  place: number | null;
   wineId: string;
   name: string;
   producer: string | null;

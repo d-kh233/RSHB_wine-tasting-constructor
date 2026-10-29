@@ -8,6 +8,7 @@ import { SCALES } from "@/lib/scales";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Container } from "../ui/Container";
+import { ProgressBar } from "../ui/ProgressBar";
 import { Textarea } from "../ui/Field";
 import { ScaleInput } from "../ui/ScaleInput";
 import { WineCard } from "../ui/WineCard";
@@ -72,11 +73,20 @@ export function RatingForm({
         ← Все вина
       </button>
 
+      <p className="mb-2 text-sm font-medium text-ink-muted" aria-live="polite">
+        Вино {wine.position} из {view.wines.length}
+      </p>
+      <ProgressBar value={wine.position / view.wines.length} label={`Вино ${wine.position} из ${view.wines.length}`} className="mb-3" />
+
       <WineCard position={wine.position} label={wine.label} wine={wine.wine} />
 
       {!canRate && (
-        <Alert tone="warning" className="mt-4">
-          {view.status !== "running" ? "Приём оценок завершён." : "Вино закрыто организатором — оценку отправить нельзя."}
+        <Alert tone={wine.status === "pending" && view.status !== "closed" ? "info" : "warning"} className="mt-4">
+          {view.status === "closed" || view.status === "published"
+            ? "Приём оценок завершён."
+            : wine.status === "pending"
+              ? "Ждём, пока организатор откроет голосование."
+              : "Вино закрыто организатором — оценку отправить нельзя."}
           {note.trim() && " Заметка осталась в поле ниже — её можно скопировать."}
         </Alert>
       )}

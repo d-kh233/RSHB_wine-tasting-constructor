@@ -18,6 +18,7 @@ import { Skeleton } from "../ui/Skeleton";
 import { Stat } from "../ui/Stat";
 import { WineCard } from "../ui/WineCard";
 import { ExportPanel } from "./ExportPanel";
+import { ValidityPanel, VoteProtection } from "./ValidityPanel";
 import { useOrgAction } from "./useOrgAction";
 
 /** «Итоги»: сводка по винам, раскрытие бутылок, публикация, передача в рейтинг. */
@@ -48,14 +49,18 @@ export function ResultsPanel({
 
   // Кабинет опрашивает дегустацию, пока она идёт: новые голоса, статус и раскрытия → свежая сводка.
   const revealedCount = tasting.wines.filter((w) => w.revealed).length;
+  const closedCount = tasting.wines.filter((w) => w.status === "closed").length;
   useEffect(() => {
     load();
-  }, [load, tasting.status, tasting.ratingsCount, revealedCount]);
+  }, [load, tasting.status, tasting.ratingsCount, revealedCount, closedCount]);
 
   const blind = tasting.mode === "blind";
   const closed = tasting.status === "closed";
+  const running = tasting.status === "running";
   const allRevealed = revealedCount === tasting.wines.length;
-  const canReveal = blind && closed;
+  const allClosed = closedCount === tasting.wines.length;
+  // Раскрывать бутылку можно, как только закрыто голосование по ней; «Раскрыть все» — когда закрыты все вина.
+  const canReveal = (row: SummaryWineDTO) => blind && (running || closed) && row.status === "closed" && !row.revealed;
 
   const setStatus = (action: "close" | "publish") =>
     run(action, () => api<OrgTastingDTO>(`${base}/status`, { body: { action } }));
@@ -76,7 +81,8 @@ export function ResultsPanel({
         {tasting.status === "running" && (
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-ink-muted">
-              Дегустация идёт — сводка обновляется сама. Раскрыть бутылки и опубликовать итоги можно после завершения.
+              Дегустация идёт — сводка обновляется сама. Опубликовать итоги можно после завершения.
+              {blind && " Бутылку можно раскрыть, как только закрыто голосование по ней."}
             </p>
             <Button variant="danger" onClick={() => setConfirm("close")} disabled={busy !== null} className="shrink-0">
               Завершить дегустацию
@@ -84,51 +90,53 @@ export function ResultsPanel({
           </div>
         )}
 
-        {closed && (
-          <>
-            {blind && (
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium text-ink">
-                    Раскрыто бутылок: {revealedCount} из {tasting.wines.length}
-                  </p>
-                  <p className="mt-0.5 text-sm text-ink-muted">
-                    Раскрытое вино гости сразу видят под своим номером. Раскрывайте по одной или все сразу.
-                  </p>
-                  <ProgressBar
-                    value={tasting.wines.length ? revealedCount / tasting.wines.length : 0}
-                    label="Раскрыто бутылок"
-                    className="mt-2"
-                  />
-                </div>
-                {!allRevealed && (
-                  <Button
-                    variant="secondary"
-                    onClick={revealAll}
-                    loading={busy === "reveal-all"}
-                    disabled={busy !== null}
-                    className="shrink-0"
-                  >
-                    Раскрыть все
-                  </Button>
-                )}
-              </div>
-            )}
-            <div className="flex flex-col gap-3 border-t border-line pt-4 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-ink-muted">
-                {blind && !allRevealed
-                  ? "Опубликовать итоги можно, когда раскрыты все бутылки."
-                  : "Итоги увидят гости и все, у кого есть код дегустации."}
+        {blind && (running || closed) && (
+          <div className="flex flex-col gap-3 border-t border-line pt-4 first:border-0 first:pt-0 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-ink">
+                Раскрыто бутылок: {revealedCount} из {tasting.wines.length}
               </p>
+              <p className="mt-0.5 text-sm text-ink-muted">
+                Раскрытое вино гость видит под своим номером вместе со своей оценкой и средним.
+                {allClosed
+                  ? " Раскрывайте по одной или все сразу."
+                  : " «Раскрыть все» станет доступно, когда закрыты все вина."}
+              </p>
+              <ProgressBar
+                value={tasting.wines.length ? revealedCount / tasting.wines.length : 0}
+                label="Раскрыто бутылок"
+                className="mt-2"
+              />
+            </div>
+            {!allRevealed && (
               <Button
-                onClick={() => setConfirm("publish")}
-                disabled={busy !== null || (blind && !allRevealed)}
+                variant="secondary"
+                onClick={revealAll}
+                loading={busy === "reveal-all"}
+                disabled={busy !== null || !allClosed}
                 className="shrink-0"
               >
-                Опубликовать итоги
+                Раскрыть все
               </Button>
-            </div>
-          </>
+            )}
+          </div>
+        )}
+
+        {closed && (
+          <div className="flex flex-col gap-3 border-t border-line pt-4 first:border-0 first:pt-0 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-ink-muted">
+              {blind && !allRevealed
+                ? "Опубликовать итоги можно, когда раскрыты все бутылки."
+                : "Итоги увидят гости и все, у кого есть код дегустации."}
+            </p>
+            <Button
+              onClick={() => setConfirm("publish")}
+              disabled={busy !== null || (blind && !allRevealed)}
+              className="shrink-0"
+            >
+              Опубликовать итоги
+            </Button>
+          </div>
         )}
 
         {tasting.status === "published" && (
@@ -196,8 +204,7 @@ export function ResultsPanel({
                   scale={summary.scale}
                   blind={blind}
                   revealAction={
-                    canReveal &&
-                    !row.revealed && (
+                    canReveal(row) && (
                       <Button
                         size="sm"
                         variant="secondary"
@@ -216,9 +223,13 @@ export function ResultsPanel({
         )}
       </section>
 
+      {summary && tasting.status !== "draft" && <ValidityPanel summary={summary} />}
+
       {(tasting.status === "closed" || tasting.status === "published") && (
         <ExportPanel adminKey={tasting.adminKey} ratingsCount={summary?.totalRatings ?? tasting.ratingsCount} />
       )}
+
+      <VoteProtection />
 
       <ConfirmModal
         open={confirm === "close"}
@@ -276,6 +287,7 @@ function SummaryRow({
             <Badge>нет оценок</Badge>
           )}
           {blind && !row.revealed && <Badge tone="primary">скрыто от гостей</Badge>}
+          {row.belowMinGuests && row.count > 0 && <Badge tone="warning">меньше минимума гостей</Badge>}
         </>
       }
       actions={revealAction}

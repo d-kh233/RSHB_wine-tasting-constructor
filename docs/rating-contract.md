@@ -1,6 +1,6 @@
 # Контракт передачи оценок в «Народный винный рейтинг»
 
-Версия формата: **1.0** (`schemaVersion: "1.0"`). Типы в коде — `RatingExportV1` и `ImportResultDTO` в
+Версия формата: **1.1** (`schemaVersion: "1.1"`). Импорт принимает и 1.0 — в ней у оценок нет `scale` и `normalized5`. Типы в коде — `RatingExportV1` и `ImportResultDTO` в
 [`lib/dto.ts`](../lib/dto.ts), zod-схема входа — `ratingExportSchema` в [`lib/validation.ts`](../lib/validation.ts).
 Экспорт формирует [`services/exportService.ts`](../services/exportService.ts), импорт — [`services/ratingService.ts`](../services/ratingService.ts).
 
@@ -33,8 +33,8 @@ GET /api/org/{adminKey}/export  ──RatingExportV1──▶  POST /api/rating/
 
 | Поле | Тип | Описание |
 |---|---|---|
-| `schemaVersion` | `"1.0"` | Версия контракта. Другие версии отклоняются с 400 |
-| `exportId` | string, 8..64 символа `[A-Za-z0-9_-]` | Ключ идемпотентности. Конструктор строит его как `exp_` + первые 32 hex-символа `sha256(tastingId + "\|" + closedAt)`, поэтому у одной дегустации он всегда один и тот же |
+| `schemaVersion` | `"1.1"` | Версия контракта. Импорт принимает `"1.0"` и `"1.1"`, другие отклоняются с 400 |
+| `exportId` | string, 8..64 символа `[A-Za-z0-9_-]` | Ключ идемпотентности. Конструктор строит его как `exp_` + первые 32 hex-символа `sha256(tastingId + "\|" + closedAt + "\|" + schemaVersion)`: у одной дегустации в одной версии формата он всегда один и тот же. Версия входит в ключ, потому что новая версия меняет тело — под старым `exportId` импорт ответил бы 409 |
 | `source.system` | `"wine-tasting-constructor"` | Система-источник |
 | `source.tastingId` | string | id дегустации в источнике |
 | `source.title` | string, 1..120 | Название дегустации |
@@ -52,8 +52,10 @@ GET /api/org/{adminKey}/export  ──RatingExportV1──▶  POST /api/rating/
 | `ratings[]` | 0..20 000 элементов | Оценки, отсортированы по позиции вина, затем по `guestHash` |
 | `ratings[].guestHash` | 32 hex-символа | Анонимный id гостя: `sha256(EXPORT_SALT + guestId)`, первые 32 символа. Без соли по нему нельзя узнать гостя |
 | `ratings[].tastingWineId` | string | Ссылка на элемент `wines[]` |
-| `ratings[].value` | number | Оценка в шкале дегустации |
-| `ratings[].normalized100` | number | Оценка, приведённая к 0..100: `(value − min) / (max − min) · 100`, один знак после запятой |
+| `ratings[].value` | number | Исходная оценка в шкале дегустации |
+| `ratings[].scale` | `points100` \| `stars5` \| `points10` | Шкала, по которой поставлена оценка (совпадает с `source.scale.id`). С версии 1.1 |
+| `ratings[].normalized100` | number | Оценка, приведённая к 0..100: `(value − min) / (max − min) × 100`, один знак после запятой |
+| `ratings[].normalized5` | number | Оценка, приведённая к 1..5: `1 + 4 × (value − min) / (max − min)`, один знак. Для `stars5` совпадает с `value`. С версии 1.1 |
 | `stats.totalRatings` | int | Сколько всего оценок было в дегустации |
 | `stats.exportedRatings` | int | Сколько оценок в `ratings`. Должно совпадать с `ratings.length` |
 | `stats.rejected[]` | `{ reason, count }` | Какие оценки конструктор отсеял до отправки и почему |
@@ -66,12 +68,16 @@ GET /api/org/{adminKey}/export  ──RatingExportV1──▶  POST /api/rating/
 ### Экспорт (конструктор)
 
 - Экспорт доступен, только когда дегустация в статусе `closed` или `published` (иначе 409 `NOT_CLOSED`). После
-  закрытия оценки не меняются, поэтому повторные выгрузки дают одинаковые данные.
+  закрытия новых оценок нет. Организатор может удалить гостя или оценку, но только до публикации итогов и до
+  первой передачи в рейтинг, поэтому после передачи повторные выгрузки дают одинаковые данные.
 - Оценка попадает в `ratings`, если:
   - шкала, сохранённая вместе с оценкой, совпадает со шкалой дегустации, иначе `SCALE_MISMATCH`;
-  - значение лежит в диапазоне шкалы и кратно её шагу, иначе `VALUE_OUT_OF_SCALE`.
+  - значение лежит в диапазоне шкалы и кратно её шагу, иначе `VALUE_OUT_OF_SCALE`;
+  - вино оценили не меньше гостей, чем задано в настройке «Минимум гостей» (`Tasting.minGuests`, по умолчанию 0),
+    иначе все оценки этого вина отсеиваются с `BELOW_MIN_GUESTS`.
 - Защита от двойного голоса работает раньше, при голосовании: UNIQUE(guestId, tastingWineId), так что одна
-  оценка гостя на вино гарантирована ещё до экспорта.
+  оценка гостя на вино гарантирована ещё до экспорта. Отказы при голосовании (вне диапазона, после закрытия,
+  дубль, вино не в программе) пишутся в журнал `RejectedRating` и видны организатору в «Итогах».
 
 ### Импорт (рейтинг): ошибки структуры, весь экспорт отклоняется с 400
 
@@ -91,13 +97,14 @@ GET /api/org/{adminKey}/export  ──RatingExportV1──▶  POST /api/rating/
 |---|---|
 | `UNKNOWN_TASTING_WINE` | `tastingWineId` оценки нет в `wines[]` |
 | `UNKNOWN_WINE` | `wineId` нет в каталоге рейтинга |
+| `SCALE_MISMATCH` | `ratings[].scale` (если передан) не совпадает с `source.scale.id` |
 | `VALUE_OUT_OF_SCALE` | `value` вне диапазона шкалы или не кратно шагу |
-| `NORMALIZATION_MISMATCH` | `normalized100` расходится с пересчётом больше чем на 0,05 |
+| `NORMALIZATION_MISMATCH` | `normalized100` или `normalized5` (если передан) расходится с пересчётом больше чем на 0,05 |
 | `DUPLICATE_IN_EXPORT` | Тот же гость (`guestHash`) повторно оценил то же вино в одном экспорте |
 | `ALREADY_IMPORTED` | Оценка этого гостя этому вину из этой дегустации уже есть в рейтинге (пришла с другим `exportId`) |
 
 Рейтинг сохраняет **свой** пересчёт `normalized100`, а не присланное число. Нормализация одна на всю систему:
-`normalize100` в [`lib/scales.ts`](../lib/scales.ts).
+`normalize100` и `normalize5` в [`lib/scales.ts`](../lib/scales.ts).
 
 ### Идемпотентность
 
@@ -106,7 +113,9 @@ GET /api/org/{adminKey}/export  ──RatingExportV1──▶  POST /api/rating/
   `repeated: true`. Тела сравниваются по `sha256` канонического JSON (с отсортированными ключами).
 - Тот же `exportId` с другим телом — это **409 `EXPORT_ID_CONFLICT`**.
 - Если два одинаковых импорта пришли одновременно, первый сохраняет данные, а второй получает его отчёт.
-- Второй рубеж против дублей: UNIQUE(sourceTastingId, guestHash, wineId) в таблице рейтинга.
+- Второй рубеж против дублей: UNIQUE(sourceTastingId, guestHash, wineId) в таблице рейтинга. Если та же
+  дегустация придёт с другим `exportId` (например, в новой версии формата), уже принятые оценки отклоняются
+  как `ALREADY_IMPORTED`.
 
 ## Ответ `ImportResultDTO`
 
@@ -129,7 +138,7 @@ Content-Type: application/json
 
 ```json
 {
-  "schemaVersion": "1.0",
+  "schemaVersion": "1.1",
   "exportId": "exp_320d09dd4e4af6e10137d12d24f689a4",
   "source": {
     "system": "wine-tasting-constructor",
@@ -166,9 +175,9 @@ Content-Type: application/json
     }
   ],
   "ratings": [
-    { "guestHash": "269b9431d09ada914cb014eee6ac4005", "tastingWineId": "cmvr4x68i000rofa0zz1r5r82", "value": 4, "normalized100": 75 },
-    { "guestHash": "8b8f9f8199efb6be6401425fa8f2ddcd", "tastingWineId": "cmvr4x68i000rofa0zz1r5r82", "value": 5, "normalized100": 100 },
-    { "guestHash": "aca1d4b4a96394a318d9a244e5102af6", "tastingWineId": "cmvr4x68i000rofa0zz1r5r82", "value": 3, "normalized100": 50 }
+    { "guestHash": "269b9431d09ada914cb014eee6ac4005", "tastingWineId": "cmvr4x68i000rofa0zz1r5r82", "value": 4, "scale": "stars5", "normalized100": 75, "normalized5": 4 },
+    { "guestHash": "8b8f9f8199efb6be6401425fa8f2ddcd", "tastingWineId": "cmvr4x68i000rofa0zz1r5r82", "value": 5, "scale": "stars5", "normalized100": 100, "normalized5": 5 },
+    { "guestHash": "aca1d4b4a96394a318d9a244e5102af6", "tastingWineId": "cmvr4x68i000rofa0zz1r5r82", "value": 3, "scale": "stars5", "normalized100": 50, "normalized5": 3 }
   ],
   "stats": { "totalRatings": 3, "exportedRatings": 3, "rejected": [] }
 }
@@ -210,7 +219,7 @@ Content-Type: application/json
 { "error": { "code": "EXPORT_ID_CONFLICT", "message": "Этот exportId уже импортирован с другим содержимым" } }
 
 // 400: неизвестная версия
-{ "error": { "code": "VALIDATION", "message": "schemaVersion: поддерживается только schemaVersion \"1.0\"" } }
+{ "error": { "code": "VALIDATION", "message": "schemaVersion: поддерживаются schemaVersion \"1.0\", \"1.1\"" } }
 
 // 409: экспорт до завершения дегустации (GET /api/org/{adminKey}/export)
 { "error": { "code": "NOT_CLOSED", "message": "Передать оценки в рейтинг можно после завершения дегустации" } }
@@ -233,7 +242,9 @@ Content-Type: application/json
 ## Публичный рейтинг (`GET /api/rating`, страница `/rating`)
 
 Для каждого вина: `avg100` (среднее сохранённых `normalized100`, один знак), `ratingsCount` и `tastingsCount`
-(сколько дегустаций дали оценки). Вина упорядочены по `avg100`. При равном балле вина делят одно место
+(сколько дегустаций дали оценки). Место получают только вина, у которых не меньше `MIN_RATINGS_FOR_RATING`
+оценок (константа в [`lib/constants.ts`](../lib/constants.ts), по умолчанию 3). Остальные идут в конце с `place: null`,
+на странице у них плашка «Мало оценок». Вина с местом упорядочены по `avg100`. При равном балле вина делят одно место
 («1, 1, 3»), выше стоит вино с большим числом оценок. Демо-вина из seed отмечены `isDemo: true`, на странице
 у них плашка «демо».
 

@@ -2,11 +2,17 @@
 // Импорт не доверяет источнику: все правила валидности перепроверяются (docs/rating-contract.md).
 
 import { sha256 } from "@/lib/auth";
-import { NORMALIZED_TOLERANCE, REJECT_REASON, type RejectReason, type WineColor } from "@/lib/constants";
+import {
+  MIN_RATINGS_FOR_RATING,
+  NORMALIZED_TOLERANCE,
+  REJECT_REASON,
+  type RejectReason,
+  type WineColor,
+} from "@/lib/constants";
 import { db } from "@/lib/db";
 import type { ImportResultDTO, PublicRatingRowDTO } from "@/lib/dto";
 import { badRequest, conflict, isUniqueViolation } from "@/lib/http";
-import { isValidValue, normalize100, roundScore, SCALES } from "@/lib/scales";
+import { isValidValue, normalize100, normalize5, roundScore, SCALES } from "@/lib/scales";
 import { rankByScore } from "@/lib/stats";
 import { ratingExportSchema } from "@/lib/validation";
 import { countReasons } from "./exportService";
@@ -77,19 +83,25 @@ export async function importExport(body: unknown): Promise<ImportOutcome> {
   for (const r of payload.ratings) {
     const wine = wineByTw.get(r.tastingWineId);
     const k = wine ? key(r.guestHash, wine.wineId) : "";
+    // scale и normalized5 есть только с версии 1.1 — проверяем, если пришли.
+    const normalizationOk =
+      Math.abs(normalize100(scale.id, r.value) - r.normalized100) <= NORMALIZED_TOLERANCE &&
+      (r.normalized5 === undefined || Math.abs(normalize5(scale.id, r.value) - r.normalized5) <= NORMALIZED_TOLERANCE);
     const reason: RejectReason | null = !wine
       ? REJECT_REASON.UNKNOWN_TASTING_WINE
       : !inCatalog.has(wine.wineId)
         ? REJECT_REASON.UNKNOWN_WINE
-        : !isValidValue(scale.id, r.value)
-          ? REJECT_REASON.VALUE_OUT_OF_SCALE
-          : Math.abs(normalize100(scale.id, r.value) - r.normalized100) > NORMALIZED_TOLERANCE
-            ? REJECT_REASON.NORMALIZATION_MISMATCH
-            : seen.has(k)
-              ? REJECT_REASON.DUPLICATE_IN_EXPORT
-              : alreadyImported.has(k)
-                ? REJECT_REASON.ALREADY_IMPORTED
-                : null;
+        : r.scale !== undefined && r.scale !== scale.id
+          ? REJECT_REASON.SCALE_MISMATCH
+          : !isValidValue(scale.id, r.value)
+            ? REJECT_REASON.VALUE_OUT_OF_SCALE
+            : !normalizationOk
+              ? REJECT_REASON.NORMALIZATION_MISMATCH
+              : seen.has(k)
+                ? REJECT_REASON.DUPLICATE_IN_EXPORT
+                : alreadyImported.has(k)
+                  ? REJECT_REASON.ALREADY_IMPORTED
+                  : null;
     if (reason) {
       rejected.push(reason);
       continue;
@@ -133,7 +145,10 @@ export async function importExport(body: unknown): Promise<ImportOutcome> {
   return { result, created: true };
 }
 
-/** Публичный рейтинг: среднее normalized100 по всем импортированным оценкам вина. */
+/**
+ * Публичный рейтинг: среднее normalized100 по всем импортированным оценкам вина. Место получают вина
+ * с MIN_RATINGS_FOR_RATING оценками и больше; остальные — в конце, без места («Мало оценок»).
+ */
 export async function listPublic(): Promise<PublicRatingRowDTO[]> {
   const groups = await db.publicRating.groupBy({
     by: ["wineId", "sourceTastingId"],
@@ -160,8 +175,13 @@ export async function listPublic(): Promise<PublicRatingRowDTO[]> {
     // При равном среднем выше то вино, у которого больше оценок.
     .sort((a, b) => b.ratingsCount - a.ratingsCount || a.wine.name.localeCompare(b.wine.name, "ru"));
 
-  return rankByScore(rows, (r) => r.avg100).map((r) => ({
-    place: r.place!,
+  const enough = (r: (typeof rows)[number]) => r.ratingsCount >= MIN_RATINGS_FOR_RATING;
+  const ranked = [
+    ...rankByScore(rows.filter(enough), (r) => r.avg100),
+    ...rows.filter((r) => !enough(r)).map((r) => ({ ...r, place: null })),
+  ];
+  return ranked.map((r) => ({
+    place: r.place,
     wineId: r.wine.id,
     name: r.wine.name,
     producer: r.wine.producer,

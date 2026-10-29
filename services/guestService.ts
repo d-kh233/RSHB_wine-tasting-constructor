@@ -3,7 +3,15 @@
 
 import type { Guest, Tasting } from "@prisma/client";
 import { generateGuestToken, normalizeInviteCode, sha256 } from "@/lib/auth";
-import { blindWineLabel, TASTING_STATUS, WINE_STATUS, type TastingMode } from "@/lib/constants";
+import {
+  blindWineLabel,
+  LIMITS,
+  RATING_REJECT_REASON,
+  TASTING_STATUS,
+  WINE_STATUS,
+  type RatingRejectReason,
+  type TastingMode,
+} from "@/lib/constants";
 import { db } from "@/lib/db";
 import {
   isWineVisibleToGuest,
@@ -14,8 +22,9 @@ import {
   type GuestTastingDTO,
   type GuestTastingWineSource,
   type PublicResultsDTO,
+  type WineResultById,
 } from "@/lib/dto";
-import { conflict, isUniqueViolation, notFound, unauthorized, unprocessable } from "@/lib/http";
+import { AppError, conflict, isUniqueViolation, notFound, unauthorized, unprocessable } from "@/lib/http";
 import { formatScaleValue, getScale, isValidValue, type ScaleId } from "@/lib/scales";
 import { groupBy, rankByScore, wineStats } from "@/lib/stats";
 import type { RateInput } from "@/lib/validation";
@@ -92,8 +101,30 @@ export async function findGuestView(inviteCode: string, token: string | null): P
 
   const program = await loadGuestProgram(tasting);
   const guest = await findGuest(tasting, token);
-  const ratings = guest ? await db.rating.findMany({ where: { guestId: guest.id } }) : [];
-  return toGuestTastingDTO(tasting, program, guest, ratings);
+  const [ratings, results] = await Promise.all([
+    guest ? db.rating.findMany({ where: { guestId: guest.id } }) : [],
+    loadRevealedResults(tasting, program),
+  ]);
+  return toGuestTastingDTO(tasting, program, guest, ratings, results);
+}
+
+/**
+ * Среднее по раскрытым бутылкам — для экрана «Вы поставили X, среднее Y». Раскрыть можно только закрытое
+ * вино, так что его среднее больше не меняется. Нераскрытые вина сюда не попадают.
+ */
+async function loadRevealedResults(tasting: Tasting, program: GuestTastingWineSource[]): Promise<WineResultById> {
+  const revealedIds = program.filter((tw) => tw.revealedAt !== null).map((tw) => tw.id);
+  if (revealedIds.length === 0) return new Map();
+  const ratings = await db.rating.findMany({
+    where: { tastingWineId: { in: revealedIds } },
+    select: { tastingWineId: true, value: true },
+  });
+  const results: WineResultById = new Map();
+  for (const [twId, own] of groupBy(ratings, (r) => r.tastingWineId)) {
+    const { avg, count } = wineStats(tasting.scale, own.map((r) => r.value));
+    if (avg !== null) results.set(twId, { avg, count });
+  }
+  return results;
 }
 
 export async function getGuestView(inviteCode: string, token: string | null): Promise<GuestTastingDTO> {
@@ -109,34 +140,45 @@ export async function rate(inviteCode: string, token: string | null, input: Rate
   const guest = await findGuest(tasting, token);
   if (!guest) throw unauthorized();
 
+  /** Отказ попадает в журнал (таблица «Отброшенные оценки» в «Итогах») и уходит клиенту ошибкой. */
+  const reject = async (reason: RatingRejectReason, err: AppError): Promise<never> => {
+    await logRejected(tasting.id, guest.id, input, reason);
+    throw err;
+  };
+
   if (tasting.status !== TASTING_STATUS.RUNNING) {
-    throw conflict(
-      "TASTING_NOT_RUNNING",
-      tasting.status === TASTING_STATUS.DRAFT ? "Дегустация ещё не началась" : "Приём оценок завершён",
+    const draft = tasting.status === TASTING_STATUS.DRAFT;
+    await reject(
+      draft ? RATING_REJECT_REASON.NOT_OPEN : RATING_REJECT_REASON.AFTER_CLOSE,
+      conflict("TASTING_NOT_RUNNING", draft ? "Дегустация ещё не началась" : "Приём оценок завершён"),
     );
   }
 
   const tw = await db.tastingWine.findFirst({ where: { id: input.tastingWineId, tastingId: tasting.id } });
-  if (!tw) throw notFound("Вино не найдено в программе");
+  if (!tw) return reject(RATING_REJECT_REASON.NOT_IN_PROGRAM, notFound("Вино не найдено в программе"));
 
   const duplicate = () => conflict("DUPLICATE_RATING", "Вы уже оценили это вино");
   const existing = await db.rating.findUnique({
     where: { guestId_tastingWineId: { guestId: guest.id, tastingWineId: tw.id } },
   });
-  if (existing) throw duplicate();
+  if (existing) await reject(RATING_REJECT_REASON.DUPLICATE, duplicate());
 
   if (tw.status !== WINE_STATUS.OPEN) {
-    throw conflict(
-      "WINE_NOT_OPEN",
-      tw.status === WINE_STATUS.PENDING ? "Это вино ещё не открыто организатором" : "Вино уже закрыто организатором",
+    const pending = tw.status === WINE_STATUS.PENDING;
+    await reject(
+      pending ? RATING_REJECT_REASON.NOT_OPEN : RATING_REJECT_REASON.AFTER_CLOSE,
+      conflict("WINE_NOT_OPEN", pending ? "Это вино ещё не открыто организатором" : "Вино уже закрыто организатором"),
     );
   }
 
   if (!isValidValue(tasting.scale, input.value)) {
     const { min, max, step } = getScale(tasting.scale);
-    throw unprocessable(
-      "VALUE_OUT_OF_SCALE",
-      `Оценка должна быть от ${formatScaleValue(tasting.scale, min)} до ${formatScaleValue(tasting.scale, max)} с шагом ${String(step).replace(".", ",")}`,
+    await reject(
+      RATING_REJECT_REASON.OUT_OF_RANGE,
+      unprocessable(
+        "VALUE_OUT_OF_SCALE",
+        `Оценка должна быть от ${formatScaleValue(tasting.scale, min)} до ${formatScaleValue(tasting.scale, max)} с шагом ${String(step).replace(".", ",")}`,
+      ),
     );
   }
 
@@ -154,9 +196,23 @@ export async function rate(inviteCode: string, token: string | null, input: Rate
     return toGuestRatingDTO(rating);
   } catch (err) {
     // Параллельный второй запрос (двойной клик) прошёл проверку выше — его останавливает UNIQUE в БД.
-    if (isUniqueViolation(err)) throw duplicate();
+    if (isUniqueViolation(err)) return reject(RATING_REJECT_REASON.DUPLICATE, duplicate());
     throw err;
   }
+}
+
+/** Запись в журнал отказов; журнал ограничен LIMITS.REJECTED_LOG_MAX на дегустацию, чтобы спам не раздувал БД. */
+async function logRejected(tastingId: string, guestId: string, input: RateInput, reason: RatingRejectReason) {
+  if ((await db.rejectedRating.count({ where: { tastingId } })) >= LIMITS.REJECTED_LOG_MAX) return;
+  await db.rejectedRating.create({
+    data: {
+      tastingId,
+      guestId,
+      tastingWineId: input.tastingWineId,
+      value: Number.isFinite(input.value) ? input.value : null,
+      reason,
+    },
+  });
 }
 
 /* ---------- Итоги (после публикации) ---------- */

@@ -1,5 +1,5 @@
 // Дегустация глазами организатора: создание, настройки, программа, переходы статусов (PLAN.md §5),
-// раскрытие бутылок и сводка.
+// раскрытие бутылок, гости (удаление гостя и оценки) и сводка с валидностью.
 // Доступ к кабинету = знание adminKey (аккаунт организатора только даёт список своих дегустаций).
 // Все функции возвращают DTO, а не сущности Prisma.
 
@@ -8,21 +8,31 @@ import { generateAdminKey, generateInviteCode } from "@/lib/auth";
 import {
   blindWineLabel,
   KEY_GENERATION_ATTEMPTS,
+  LIMITS,
   TASTING_MODE,
   TASTING_STATUS,
   TASTING_STATUS_LABEL,
   TASTING_TRANSITIONS,
   WINE_STATUS,
   WINE_TRANSITIONS,
+  type RatingRejectReason,
   type TastingAction,
   type TastingStatus,
   type WineAction,
   type WineStatus,
 } from "@/lib/constants";
 import { db } from "@/lib/db";
-import { toMyTastingDTO, toOrgTastingDTO, toWineDTO, type MyTastingDTO, type OrgTastingDTO, type SummaryDTO } from "@/lib/dto";
+import {
+  toMyTastingDTO,
+  toOrgTastingDTO,
+  toWineDTO,
+  type MyTastingDTO,
+  type OrgGuestDTO,
+  type OrgTastingDTO,
+  type SummaryDTO,
+} from "@/lib/dto";
 import { AppError, conflict, isUniqueViolation, notFound } from "@/lib/http";
-import type { ScaleId } from "@/lib/scales";
+import { isValidValue, type ScaleId } from "@/lib/scales";
 import { groupBy, rankByScore, wineStats } from "@/lib/stats";
 import type { CreateTastingInput, UpdateTastingInput } from "@/lib/validation";
 
@@ -259,35 +269,96 @@ export async function setWineStatus(adminKey: string, tastingWineId: string, act
 
 /* ---------- Раскрытие бутылок ---------- */
 
-/** Раскрытие — только в слепой дегустации и только после её завершения (до публикации). */
+/** Раскрытие — только в слепой дегустации, пока она идёт или завершена (после публикации всё уже раскрыто). */
 function requireRevealable(tasting: Tasting) {
   if (tasting.mode !== TASTING_MODE.BLIND) {
     throw conflict("NOT_BLIND", "В открытой дегустации названия вин гостям и так видны");
   }
-  if (tasting.status !== TASTING_STATUS.CLOSED) {
-    throw conflict(
-      "NOT_CLOSED",
-      tasting.status === TASTING_STATUS.PUBLISHED
-        ? "Итоги уже опубликованы — все бутылки раскрыты"
-        : "Раскрывать бутылки можно только после завершения дегустации",
-    );
+  if (tasting.status === TASTING_STATUS.PUBLISHED) {
+    throw conflict("ALREADY_PUBLISHED", "Итоги уже опубликованы — все бутылки раскрыты");
+  }
+  if (tasting.status === TASTING_STATUS.DRAFT) {
+    throw conflict("TASTING_NOT_STARTED", "Дегустация ещё не началась");
   }
 }
 
-/** Повторное раскрытие уже раскрытой бутылки — не ошибка (двойной клик): дата не меняется. */
+/**
+ * «Раскрыть вино №N» — только после закрытия голосования по этому вину: иначе гость, ещё не оценивший
+ * вино, увидит название. Повторное раскрытие — не ошибка (двойной клик): дата не меняется.
+ */
 export async function reveal(adminKey: string, tastingWineId: string): Promise<OrgTastingDTO> {
   const tasting = await requireTasting(adminKey);
   requireRevealable(tasting);
   const tw = await db.tastingWine.findFirst({ where: { id: tastingWineId, tastingId: tasting.id } });
   if (!tw) throw notFound("Вино не найдено в программе");
+  if (tw.status !== WINE_STATUS.CLOSED) {
+    throw conflict("WINE_NOT_CLOSED", `Сначала закройте голосование по ${blindWineLabel(tw.position)}`);
+  }
+  // Закрытое вино открыть заново нельзя, так что проверка статуса выше не устаревает.
   await db.tastingWine.updateMany({ where: { id: tw.id, revealedAt: null }, data: { revealedAt: new Date() } });
   return loadOrgDTO(tasting.id);
 }
 
+/** «Раскрыть всё» — только когда голосование закрыто по всем винам. */
 export async function revealAll(adminKey: string): Promise<OrgTastingDTO> {
   const tasting = await requireTasting(adminKey);
   requireRevealable(tasting);
+  const notClosed = await db.tastingWine.count({ where: { tastingId: tasting.id, status: { not: WINE_STATUS.CLOSED } } });
+  if (notClosed > 0) {
+    throw conflict("NOT_ALL_CLOSED", "Раскрыть всё можно, когда голосование закрыто по всем винам");
+  }
   await db.tastingWine.updateMany({ where: { tastingId: tasting.id, revealedAt: null }, data: { revealedAt: new Date() } });
+  return loadOrgDTO(tasting.id);
+}
+
+/* ---------- Гости ---------- */
+
+/** Гости с их оценками — для списка в «Проведении». */
+export async function listGuests(adminKey: string): Promise<OrgGuestDTO[]> {
+  const tasting = await requireTasting(adminKey);
+  const guests = await db.guest.findMany({
+    where: { tastingId: tasting.id },
+    include: { ratings: { include: { tastingWine: { select: { position: true } } } } },
+    orderBy: { createdAt: "asc" },
+  });
+  return guests.map((g) => ({
+    id: g.id,
+    displayName: g.displayName,
+    createdAt: g.createdAt.toISOString(),
+    ratings: g.ratings
+      .map((r) => ({ id: r.id, tastingWineId: r.tastingWineId, position: r.tastingWine.position, value: r.value }))
+      .sort((a, b) => a.position - b.position),
+  }));
+}
+
+/**
+ * Удалять гостей и оценки можно, пока итоги не опубликованы и оценки не ушли в рейтинг:
+ * иначе публичные итоги и рейтинг разойдутся с кабинетом.
+ */
+async function requireVotesEditable(tasting: Tasting) {
+  if (tasting.status === TASTING_STATUS.PUBLISHED) {
+    throw conflict("ALREADY_PUBLISHED", "Итоги уже опубликованы — удалять гостей и оценки нельзя");
+  }
+  if (await db.ratingImport.count({ where: { sourceTastingId: tasting.id } })) {
+    throw conflict("ALREADY_EXPORTED", "Оценки уже переданы в рейтинг — удалять гостей и оценки нельзя");
+  }
+}
+
+/** Удаление гостя вместе с его оценками (cascade). Его cookie перестаёт действовать. */
+export async function deleteGuest(adminKey: string, guestId: string): Promise<OrgTastingDTO> {
+  const tasting = await requireTasting(adminKey);
+  await requireVotesEditable(tasting);
+  const { count } = await db.guest.deleteMany({ where: { id: guestId, tastingId: tasting.id } });
+  if (count === 0) throw notFound("Гость не найден");
+  return loadOrgDTO(tasting.id);
+}
+
+/** Удаление одной оценки. Если вино ещё открыто, гость сможет оценить его заново. */
+export async function deleteRating(adminKey: string, ratingId: string): Promise<OrgTastingDTO> {
+  const tasting = await requireTasting(adminKey);
+  await requireVotesEditable(tasting);
+  const { count } = await db.rating.deleteMany({ where: { id: ratingId, tastingId: tasting.id } });
+  if (count === 0) throw notFound("Оценка не найдена");
   return loadOrgDTO(tasting.id);
 }
 
@@ -296,19 +367,33 @@ export async function revealAll(adminKey: string): Promise<OrgTastingDTO> {
 /** Сводка по винам: число голосов, среднее, разброс, avg100, места и заметки без имён. */
 export async function summary(adminKey: string): Promise<SummaryDTO> {
   const tasting = await requireTasting(adminKey);
-  const [program, ratings, guestsCount] = await Promise.all([
+  const [program, ratings, guestsCount, rejected, rejectedTotal] = await Promise.all([
     db.tastingWine.findMany({ where: { tastingId: tasting.id }, include: { wine: true }, orderBy: { position: "asc" } }),
     db.rating.findMany({
       where: { tastingId: tasting.id },
-      select: { tastingWineId: true, value: true, note: true },
+      select: { tastingWineId: true, value: true, scale: true, note: true },
       orderBy: { createdAt: "asc" },
     }),
     db.guest.count({ where: { tastingId: tasting.id } }),
+    db.rejectedRating.findMany({
+      where: { tastingId: tasting.id },
+      include: { guest: { select: { displayName: true } } },
+      orderBy: { createdAt: "desc" },
+      take: LIMITS.REJECTED_SHOW_MAX,
+    }),
+    db.rejectedRating.count({ where: { tastingId: tasting.id } }),
   ]);
 
   const byWine = groupBy(ratings, (r) => r.tastingWineId);
+  const positionOf = new Map(program.map((tw) => [tw.id, tw.position]));
+  // Те же правила, что в exportService.build: что здесь «валидно», то и уйдёт в рейтинг.
+  let validRatings = 0;
   const rows = program.map((tw) => {
     const own = byWine.get(tw.id) ?? [];
+    const belowMinGuests = own.length < tasting.minGuests;
+    if (!belowMinGuests) {
+      validRatings += own.filter((r) => r.scale === tasting.scale && isValidValue(tasting.scale, r.value)).length;
+    }
     return {
       tastingWineId: tw.id,
       position: tw.position,
@@ -318,6 +403,7 @@ export async function summary(adminKey: string): Promise<SummaryDTO> {
       wine: toWineDTO(tw.wine),
       ...wineStats(tasting.scale, own.map((r) => r.value)),
       notes: own.map((r) => r.note).filter((n): n is string => Boolean(n)),
+      belowMinGuests,
     };
   });
 
@@ -327,5 +413,16 @@ export async function summary(adminKey: string): Promise<SummaryDTO> {
     guestsCount,
     totalRatings: ratings.length,
     wines: rankByScore(rows, (r) => r.avg100),
+    minGuests: tasting.minGuests,
+    validRatings,
+    rejectedTotal,
+    rejected: rejected.map((r) => ({
+      id: r.id,
+      position: positionOf.get(r.tastingWineId) ?? null,
+      guestName: r.guest?.displayName ?? null,
+      value: r.value,
+      reason: r.reason as RatingRejectReason,
+      createdAt: r.createdAt.toISOString(),
+    })),
   };
 }

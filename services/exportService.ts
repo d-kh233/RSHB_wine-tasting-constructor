@@ -16,11 +16,16 @@ import {
 import { db } from "@/lib/db";
 import type { RatingExportV1 } from "@/lib/dto";
 import { AppError, conflict, notFound } from "@/lib/http";
-import { getScale, isValidValue, normalize100 } from "@/lib/scales";
+import { getScale, isValidValue, normalize100, normalize5 } from "@/lib/scales";
+import { groupBy } from "@/lib/stats";
 
-/** exportId зависит только от дегустации и момента её закрытия — после закрытия оценки не меняются. */
+/**
+ * exportId зависит от дегустации, момента её закрытия и версии формата. Версия — в ключе, потому что новая
+ * версия меняет тело: под старым exportId импорт ответил бы 409. Повтор той же дегустации в новой версии
+ * получает новый exportId, а дубли оценок отсекает UNIQUE(sourceTastingId, guestHash, wineId) в рейтинге.
+ */
 export const exportIdFor = (tastingId: string, closedAt: Date) =>
-  `exp_${sha256(`${tastingId}|${closedAt.toISOString()}`).slice(0, EXPORT_HASH_LENGTH)}`;
+  `exp_${sha256(`${tastingId}|${closedAt.toISOString()}|${EXPORT_SCHEMA_VERSION}`).slice(0, EXPORT_HASH_LENGTH)}`;
 
 /** Анонимный хэш гостя: без соли по guestId нельзя восстановить, кто это был. */
 function guestHashFn(): (guestId: string) => string {
@@ -57,6 +62,8 @@ export async function build(adminKey: string): Promise<RatingExportV1> {
   const scale = getScale(tasting.scale);
   const guestHash = guestHashFn();
   const positionOf = new Map(program.map((tw) => [tw.id, tw.position]));
+  const countByWine = groupBy(ratings, (r) => r.tastingWineId);
+  const belowMinGuests = (twId: string) => (countByWine.get(twId)?.length ?? 0) < tasting.minGuests;
 
   // Валидность оценки для рейтинга (docs/rating-contract.md, «Правила валидности»).
   // Имена гостей и заметки в экспорт не попадают никогда.
@@ -65,12 +72,15 @@ export async function build(adminKey: string): Promise<RatingExportV1> {
   for (const r of ratings) {
     if (r.scale !== tasting.scale) rejected.push(REJECT_REASON.SCALE_MISMATCH);
     else if (!isValidValue(scale.id, r.value)) rejected.push(REJECT_REASON.VALUE_OUT_OF_SCALE);
+    else if (belowMinGuests(r.tastingWineId)) rejected.push(REJECT_REASON.BELOW_MIN_GUESTS);
     else {
       exported.push({
         guestHash: guestHash(r.guestId),
         tastingWineId: r.tastingWineId,
         value: r.value,
+        scale: scale.id,
         normalized100: normalize100(scale.id, r.value),
+        normalized5: normalize5(scale.id, r.value),
       });
     }
   }

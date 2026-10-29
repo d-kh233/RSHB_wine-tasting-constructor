@@ -85,6 +85,18 @@ export function normalize100(scaleId: string, value: number): number {
   return roundScore(((value - min) / (max - min)) * 100);
 }
 
+/** То же в 1..5: normalized5 = 1 + 4 × normalized100 / 100 (для 5 звёзд совпадает с самой оценкой). */
+export function normalize5(scaleId: string, value: number): number {
+  const { min, max } = getScale(scaleId);
+  return roundScore(1 + (4 * (value - min)) / (max - min));
+}
+
+/** Формулы для подсказок в UI и docs/rating-contract.md. */
+export const NORMALIZATION_FORMULAS = [
+  "normalized100 = (value − min) / (max − min) × 100",
+  "normalized5 = 1 + 4 × (value − min) / (max − min)",
+] as const;
+
 /** Все допустимые значения шкалы (для кнопок / звёзд). */
 export function scaleValues(scaleId: string): number[] {
   const { min, max, step } = getScale(scaleId);

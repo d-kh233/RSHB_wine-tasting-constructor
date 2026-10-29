@@ -15,6 +15,8 @@ export interface TastingFormValues {
   mode: TastingMode;
   scale: ScaleId;
   notesEnabled: boolean;
+  /** Строка как в <input type="number">; пустая — 0. */
+  minGuests: string;
 }
 
 export const EMPTY_TASTING_FORM: TastingFormValues = {
@@ -25,6 +27,7 @@ export const EMPTY_TASTING_FORM: TastingFormValues = {
   mode: "blind",
   scale: "points100",
   notesEnabled: true,
+  minGuests: "0",
 };
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -45,6 +48,7 @@ export function tastingToForm(t: OrgTastingDTO): TastingFormValues {
     mode: t.mode,
     scale: t.scale,
     notesEnabled: t.notesEnabled,
+    minGuests: String(t.minGuests),
   };
 }
 
@@ -58,6 +62,7 @@ export function formToPayload(v: TastingFormValues) {
     mode: v.mode,
     scale: v.scale,
     notesEnabled: v.notesEnabled,
+    minGuests: v.minGuests.trim() === "" ? 0 : Number(v.minGuests),
   };
 }
 
@@ -154,6 +159,23 @@ export function TastingFields({
           </span>
         </span>
       </label>
+
+      <Field
+        label="Минимум гостей"
+        hint={`Оценки вина уйдут в «Народный рейтинг», только если его оценили не меньше стольких гостей. 0 — без ограничения`}
+      >
+        <Input
+          type="number"
+          inputMode="numeric"
+          min={0}
+          max={LIMITS.MIN_GUESTS_MAX}
+          step={1}
+          value={values.minGuests}
+          onChange={(e) => set("minGuests", e.target.value)}
+          disabled={disabled}
+          className="max-w-32"
+        />
+      </Field>
     </div>
   );
 }

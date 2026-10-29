@@ -1,14 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "@/lib/apiClient";
 import { POLL_INTERVAL_MS, TASTING_MODE_LABEL } from "@/lib/constants";
-import type { GuestRatingDTO, GuestTastingDTO } from "@/lib/dto";
+import type { GuestRatingDTO, GuestTastingDTO, GuestTastingWineDTO } from "@/lib/dto";
 import { SCALES } from "@/lib/scales";
 import { Container } from "../ui/Container";
 import { LocalDate } from "../ui/LocalDate";
 import { JoinForm } from "./JoinForm";
 import { RatingForm } from "./RatingForm";
+import { RevealModal } from "./RevealResult";
 import { ThankYou } from "./ThankYou";
 import { ratableWines, WineList } from "./WineList";
 
@@ -73,6 +74,18 @@ export function GuestApp({ initial }: { initial: GuestTastingDTO }) {
       document.removeEventListener("visibilitychange", tick);
     };
   }, [live, refresh]);
+
+  // Слепой режим: бутылки, раскрытые уже при открытой анкете, показываем окном «Вы поставили X, среднее Y».
+  // Раскрытые до загрузки страницы видны в списке — окном не дёргаем.
+  const seenRevealed = useRef(new Set(initial.wines.filter((w) => w.revealed).map((w) => w.id)));
+  const [justRevealed, setJustRevealed] = useState<GuestTastingWineDTO[]>([]);
+  useEffect(() => {
+    if (view.mode !== "blind") return;
+    const fresh = view.wines.filter((w) => w.revealed && !seenRevealed.current.has(w.id));
+    if (fresh.length === 0) return;
+    for (const w of fresh) seenRevealed.current.add(w.id);
+    setJustRevealed((prev) => [...prev, ...fresh]);
+  }, [view]);
 
   const onRated = (wineId: string) => (rating: GuestRatingDTO) => {
     setView((v) => ({ ...v, myRatings: [...v.myRatings.filter((r) => r.tastingWineId !== wineId), rating] }));
@@ -150,6 +163,7 @@ export function GuestApp({ initial }: { initial: GuestTastingDTO }) {
         </header>
       )}
       {content}
+      {view.me && <RevealModal view={view} wines={justRevealed} onClose={() => setJustRevealed([])} />}
     </Container>
   );
 }

@@ -1,5 +1,7 @@
-// Счётчик неудачных попыток в памяти процесса: хватает для одного инстанса (Render, ноутбук).
+// Счётчики попыток (неудачные входы, запросы гостя) в памяти процесса: хватает для одного инстанса (Render, ноутбук).
 // При нескольких инстансах или рестарте счётчики не общие — тогда нужен Redis или таблица в БД.
+
+import { tooManyRequests } from "./http";
 
 interface Window {
   failures: number;
@@ -31,6 +33,19 @@ export function recordFailure(key: string, windowMs: number) {
   const w = current(key);
   if (w) w.failures++;
   else windows.set(key, { failures: 1, resetAt: Date.now() + windowMs });
+}
+
+/** Счётчик запросов: учитывает этот запрос и возвращает, сколько секунд ждать (0 — запрос в пределах лимита). */
+export function hitLimit(key: string, limit: { max: number; windowMs: number }): number {
+  const wait = retryAfterSec(key, limit.max);
+  if (wait === 0) recordFailure(key, limit.windowMs);
+  return wait;
+}
+
+/** Лимит запросов (вход гостя, оценка): сверх лимита — 429 с подсказкой, сколько ждать. */
+export function enforceLimit(key: string, limit: { max: number; windowMs: number }) {
+  const wait = hitLimit(key, limit);
+  if (wait > 0) throw tooManyRequests(`Слишком много запросов. Подождите ${wait} с и попробуйте снова`);
 }
 
 export function resetFailures(key: string) {

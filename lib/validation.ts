@@ -4,8 +4,8 @@
 import { z } from "zod";
 import {
   EMAIL_MAX,
-  EXPORT_SCHEMA_VERSION,
   EXPORT_SOURCE_SYSTEM,
+  IMPORT_SCHEMA_VERSIONS,
   LIMITS,
   PASSWORD_MAX,
   PASSWORD_MIN,
@@ -77,11 +77,17 @@ const tastingFields = {
   mode,
   scale,
   notesEnabled: z.boolean(),
+  minGuests: z
+    .number({ invalid_type_error: "минимум гостей — число" })
+    .int("минимум гостей — целое число")
+    .min(0, "минимум гостей не может быть отрицательным")
+    .max(LIMITS.MIN_GUESTS_MAX, `минимум гостей — не больше ${LIMITS.MIN_GUESTS_MAX}`),
 };
 
 export const createTastingSchema = z.object({
   ...tastingFields,
   notesEnabled: tastingFields.notesEnabled.default(true),
+  minGuests: tastingFields.minGuests.default(0),
 });
 export type CreateTastingInput = z.infer<typeof createTastingSchema>;
 
@@ -161,8 +167,8 @@ export type RateInput = z.infer<typeof rateSchema>;
 const nullableText = (max: number) => z.string().max(max).nullable();
 
 export const ratingExportSchema = z.object({
-  schemaVersion: z.literal(EXPORT_SCHEMA_VERSION, {
-    errorMap: () => ({ message: `поддерживается только schemaVersion "${EXPORT_SCHEMA_VERSION}"` }),
+  schemaVersion: z.enum(IMPORT_SCHEMA_VERSIONS, {
+    errorMap: () => ({ message: `поддерживаются schemaVersion ${IMPORT_SCHEMA_VERSIONS.map((v) => `"${v}"`).join(", ")}` }),
   }),
   exportId: z.string().regex(/^[A-Za-z0-9_-]{8,64}$/, "exportId — 8..64 символов [A-Za-z0-9_-]"),
   source: z.object({
@@ -202,6 +208,9 @@ export const ratingExportSchema = z.object({
         tastingWineId: id,
         value: z.number(),
         normalized100: z.number(),
+        // С версии 1.1; в 1.0 их нет.
+        scale: scale.optional(),
+        normalized5: z.number().optional(),
       }),
     )
     .max(LIMITS.EXPORT_MAX_RATINGS),
