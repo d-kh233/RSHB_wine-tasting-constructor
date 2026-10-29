@@ -2,12 +2,12 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { HeroIllustration } from "@/components/home/HeroIllustration";
 import { GuestCard, OrganizerCard } from "@/components/home/RoleCards";
-import { MyTastingsList } from "@/components/org/MyTastings";
+import { DemoLoginButton } from "@/components/auth/DemoLoginButton";
 import { Container } from "@/components/ui/Container";
 import { Logo } from "@/components/ui/Logo";
 import { DEMO_ADMIN_KEY, DEMO_INVITE_CODE } from "@/lib/constants";
+import { showDemo } from "@/lib/demo";
 import { getSessionOrganizer } from "@/lib/session";
-import * as tastingService from "@/services/tastingService";
 
 const BENEFITS: { title: string; text: string; icon: ReactNode }[] = [
   {
@@ -42,7 +42,7 @@ const linkClass = "font-medium text-primary underline-offset-4 hover:underline";
 
 export default async function HomePage() {
   const organizer = await getSessionOrganizer();
-  const myTastings = organizer ? await tastingService.listByOwner(organizer.id) : [];
+  const demo = showDemo();
 
   return (
     <Container as="main" className="py-8 sm:py-12 lg:py-16">
@@ -74,37 +74,37 @@ export default async function HomePage() {
 
         <div className="min-w-0 space-y-8 lg:col-start-2 lg:row-span-2 lg:row-start-1">
           <div className="space-y-4">
-            <OrganizerCard />
+            <OrganizerCard
+              organizer={organizer ? { email: organizer.email, displayName: organizer.displayName } : null}
+              demo={demo ? <DemoLoginButton hint={false} /> : undefined}
+            />
             <GuestCard />
           </div>
 
-          <MyTastingsList
-            organizer={organizer ? { email: organizer.email, displayName: organizer.displayName } : null}
-            entries={myTastings}
-          />
-
-          <section aria-labelledby="demo">
-            <h2 id="demo" className="text-xl">
-              Демо
-            </h2>
-            <ul className="mt-2 space-y-1 text-sm">
-              <li>
-                <Link href={`/org/${DEMO_ADMIN_KEY}`} className={linkClass}>
-                  Кабинет организатора →
-                </Link>
-              </li>
-              <li>
-                <Link href={`/t/${DEMO_INVITE_CODE}`} className={linkClass}>
-                  Анкета гостя (код {DEMO_INVITE_CODE}) →
-                </Link>
-              </li>
-              <li>
-                <Link href="/rating" className={linkClass}>
-                  Народный винный рейтинг →
-                </Link>
-              </li>
-            </ul>
-          </section>
+          {demo && (
+            <section aria-labelledby="demo">
+              <h2 id="demo" className="text-xl">
+                Демо
+              </h2>
+              <ul className="mt-2 space-y-1 text-sm">
+                <li>
+                  <Link href={`/org/${DEMO_ADMIN_KEY}`} className={linkClass}>
+                    Кабинет организатора →
+                  </Link>
+                </li>
+                <li>
+                  <Link href={`/t/${DEMO_INVITE_CODE}`} className={linkClass}>
+                    Анкета гостя (код {DEMO_INVITE_CODE}) →
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/rating" className={linkClass}>
+                    Народный винный рейтинг →
+                  </Link>
+                </li>
+              </ul>
+            </section>
+          )}
         </div>
 
         <HeroIllustration className="mx-auto max-w-md lg:col-start-1 lg:row-start-2 lg:mx-0" />

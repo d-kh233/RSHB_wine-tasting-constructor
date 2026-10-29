@@ -17,77 +17,36 @@ export const STATUS_TONE: Record<MyTastingDTO["status"], BadgeTone> = {
   published: "info",
 };
 
-const linkClass = "font-medium text-primary underline-offset-4 hover:underline";
-
-/** Список дегустаций на главной: дегустации аккаунта; без входа — приглашение войти. */
-export function MyTastingsList({
-  organizer,
-  entries,
-}: {
-  organizer: { email: string; displayName: string } | null;
-  entries: MyTastingDTO[];
-}) {
+/** Список дегустаций аккаунта в /cabinet (страница доступна только вошедшему). */
+export function MyTastingsList({ entries }: { entries: MyTastingDTO[] }) {
   const router = useRouter();
+  if (entries.length === 0) {
+    return <p className="text-sm text-ink-muted">Пока пусто — создайте первую дегустацию.</p>;
+  }
   return (
-    <section aria-labelledby="my-tastings">
-      <h2 id="my-tastings" className="text-xl">
-        Мои дегустации
-      </h2>
-      {organizer === null ? (
-        <p className="mt-1 text-sm text-ink-muted">
-          <Link href="/login" className={linkClass}>
-            Войдите
-          </Link>{" "}
-          или{" "}
-          <Link href="/register" className={linkClass}>
-            зарегистрируйтесь
+    <ul className="divide-y divide-line overflow-hidden rounded-lg border border-line bg-surface">
+      {entries.map((e) => (
+        <li key={e.adminKey} className="flex items-center gap-2 pr-3 hover:bg-surface-muted">
+          <Link href={`/org/${e.adminKey}`} className="block min-w-0 flex-1 px-4 py-3">
+            <span className="block truncate font-medium text-ink">{e.title}</span>
+            <span className="mt-1 flex flex-wrap gap-1.5">
+              <Badge tone={STATUS_TONE[e.status]}>{TASTING_STATUS_LABEL[e.status]}</Badge>
+              {(e.isDemo || e.demoOwner) && <Badge tone="accent">демо</Badge>}
+            </span>
           </Link>
-          , чтобы ваши дегустации хранились в аккаунте. Без аккаунта в кабинет можно попасть только по секретной ссылке.
-        </p>
-      ) : (
-        <>
-          <p className="mt-1 flex flex-wrap gap-x-3 text-sm text-ink-muted">
-            <span className="min-w-0 break-all">{organizer.displayName || organizer.email}</span>
-            <Link href="/profile" className={linkClass}>
-              Профиль
-            </Link>
-            <LogoutButton />
-          </p>
-          {entries.length === 0 ? (
-            <p className="mt-3 text-sm text-ink-muted">
-              Пока пусто.{" "}
-              <Link href="/new" className={linkClass}>
-                Создайте первую дегустацию →
-              </Link>
-            </p>
-          ) : (
-            <ul className="mt-3 divide-y divide-line overflow-hidden rounded-lg border border-line bg-surface">
-              {entries.map((e) => (
-                <li key={e.adminKey} className="flex items-center gap-2 pr-3 hover:bg-surface-muted">
-                  <Link href={`/org/${e.adminKey}`} className="block min-w-0 flex-1 px-4 py-3">
-                    <span className="block truncate font-medium text-ink">{e.title}</span>
-                    <span className="mt-1 flex flex-wrap gap-1.5">
-                      <Badge tone={STATUS_TONE[e.status]}>{TASTING_STATUS_LABEL[e.status]}</Badge>
-                      {e.isDemo && <Badge tone="accent">демо</Badge>}
-                    </span>
-                  </Link>
-                  {!e.isDemo && (
-                    <DeleteTastingButton
-                      adminKey={e.adminKey}
-                      title={e.title}
-                      size="sm"
-                      variant="ghost"
-                      label="Удалить"
-                      onDeleted={() => router.refresh()}
-                    />
-                  )}
-                </li>
-              ))}
-            </ul>
+          {!e.isDemo && (
+            <DeleteTastingButton
+              adminKey={e.adminKey}
+              title={e.title}
+              size="sm"
+              variant="ghost"
+              label="Удалить"
+              onDeleted={() => router.refresh()}
+            />
           )}
-        </>
-      )}
-    </section>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -151,17 +110,20 @@ export function TastingSwitcher({ current, entries }: { current: MyTastingDTO; e
                   <span className="block truncate text-sm font-medium text-ink">{e.title}</span>
                   <span className="text-xs text-ink-muted">
                     {TASTING_STATUS_LABEL[e.status]}
-                    {e.isDemo && " · демо"}
+                    {(e.isDemo || e.demoOwner) && " · демо"}
                   </span>
                 </Link>
               </li>
             ))}
           </ul>
           <div className="flex items-center justify-between border-t border-line px-3 py-2.5 text-sm">
-            <Link href="/new" className="font-medium text-primary underline-offset-4 hover:underline">
+            <Link href="/cabinet/new" className="font-medium text-primary underline-offset-4 hover:underline">
               + Новая дегустация
             </Link>
             <span className="flex gap-3">
+              <Link href="/cabinet" className="font-medium text-ink-muted underline-offset-4 hover:text-ink hover:underline">
+                Кабинет
+              </Link>
               <Link href="/profile" className="font-medium text-ink-muted underline-offset-4 hover:text-ink hover:underline">
                 Профиль
               </Link>

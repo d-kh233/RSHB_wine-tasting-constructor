@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { LogoutButton } from "../auth/LogoutButton";
 import { CodeEntry } from "../guest/CodeEntry";
+import { buttonClass } from "../ui/Button";
 import { cardClass } from "../ui/Card";
 import { cx } from "../ui/cx";
 
@@ -14,10 +16,19 @@ function RoleIcon({ children }: { children: ReactNode }) {
   );
 }
 
-/** Карточка-ссылка «Я организатор» → форма создания дегустации. */
-export function OrganizerCard() {
+/**
+ * Карточка «Я организатор». Дегустации создаются только в кабинете, поэтому без входа — «Войти» и
+ * «Зарегистрироваться», со входом — «Перейти в кабинет». demo — кнопка демо-входа (если демо не отключено через NEXT_PUBLIC_SHOW_DEMO=false).
+ */
+export function OrganizerCard({
+  organizer,
+  demo,
+}: {
+  organizer: { displayName: string; email: string } | null;
+  demo?: ReactNode;
+}) {
   return (
-    <Link href="/new" className={cx(cardClass({ raised: true, interactive: true }), "group flex min-h-40 flex-col gap-4")}>
+    <section aria-labelledby="org-entry" className={cx(cardClass({ raised: true }), "flex min-h-40 flex-col gap-4")}>
       <div className="flex gap-4">
         <RoleIcon>
           <rect x="7" y="5" width="18" height="23" rx="3" className="fill-surface" />
@@ -25,14 +36,43 @@ export function OrganizerCard() {
           <path d="M11.5 13h.01M14.5 13h7M11.5 18.5h.01M14.5 18.5h7M11.5 24h.01M14.5 24h5" />
         </RoleIcon>
         <div className="min-w-0">
-          <h2 className="text-xl">Я организатор</h2>
+          <h2 id="org-entry" className="text-xl">
+            Я организатор
+          </h2>
           <p className="mt-1 text-sm text-ink-muted">
             Соберите программу из каталога, выберите шкалу и покажите гостям QR.
           </p>
         </div>
       </div>
-      <span className="mt-auto font-medium text-primary underline-offset-4 group-hover:underline">Создать дегустацию →</span>
-    </Link>
+      {organizer ? (
+        <div className="mt-auto space-y-3">
+          <p className="min-w-0 break-words text-sm text-ink-muted">
+            Вы вошли как <span className="font-medium text-ink">{organizer.displayName || organizer.email}</span>
+          </p>
+          <Link href="/cabinet" className={buttonClass({ size: "lg", block: true })}>
+            Перейти в кабинет
+          </Link>
+          <p className="flex gap-4 text-sm">
+            <Link href="/profile" className="font-medium text-primary underline-offset-4 hover:underline">
+              Профиль
+            </Link>
+            <LogoutButton />
+          </p>
+        </div>
+      ) : (
+        <div className="mt-auto space-y-3">
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Link href="/login" className={buttonClass({ size: "lg", block: true })}>
+              Войти
+            </Link>
+            <Link href="/register" className={buttonClass({ variant: "secondary", size: "lg", block: true })}>
+              Зарегистрироваться
+            </Link>
+          </div>
+          {demo}
+        </div>
+      )}
+    </section>
   );
 }
 

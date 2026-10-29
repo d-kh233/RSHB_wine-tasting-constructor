@@ -159,6 +159,14 @@ export const LOGIN_MAX_FAILURES = 5;
 export const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 /** Демо-аккаунт: вход одной кнопкой без пароля (его создаёт seed или первый вход). Регистрировать этот email нельзя. */
 export const DEMO_ORGANIZER_EMAIL = "demo@wine-tasting.local";
+/** Ограничения демо-аккаунта: он общий, поэтому дегустации в нём временные. */
+export const DEMO_ACCOUNT_LIMITS = {
+  MAX_TASTINGS: 20,
+  /** Дегустации старше суток удаляются при создании новых. */
+  TTL_MS: 24 * 60 * 60 * 1000,
+  /** Создание дегустаций в демо-аккаунте по IP. */
+  CREATE_LIMIT: { max: 5, windowMs: 60 * 60 * 1000 },
+} as const;
 export const DEMO_ORGANIZER_PROFILE = {
   displayName: "Демо-организатор",
   organization: "Конструктор дегустаций",

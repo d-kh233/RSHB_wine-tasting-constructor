@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
-import { api, errorMessage } from "@/lib/apiClient";
+import { api, ApiError, errorMessage } from "@/lib/apiClient";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { EMPTY_TASTING_FORM, formToPayload, TastingFields } from "./TastingFields";
@@ -22,6 +22,10 @@ export function CreateTastingForm() {
       const { adminKey } = await api<{ adminKey: string }>("/api/tastings", { body: formToPayload(values) });
       router.push(`/org/${adminKey}?created=1`);
     } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        router.replace("/login?next=/cabinet/new"); // сессия истекла
+        return;
+      }
       setError(errorMessage(err));
       setSubmitting(false);
     }

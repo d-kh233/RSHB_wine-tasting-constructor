@@ -5,6 +5,7 @@
 import type { Guest, Organizer, Rating, Tasting, TastingWine, Wine } from "@prisma/client";
 import {
   blindWineLabel,
+  DEMO_ORGANIZER_EMAIL,
   TASTING_MODE,
   type RatingRejectReason,
   type TastingMode,
@@ -215,10 +216,20 @@ export interface MyTastingDTO {
   title: string;
   status: TastingStatus;
   isDemo: boolean;
+  /** Дегустация лежит в демо-аккаунте — помечается «демо», но удаляется как обычная. */
+  demoOwner: boolean;
 }
 
-export function toMyTastingDTO(t: Pick<Tasting, "adminKey" | "title" | "status" | "isDemo">): MyTastingDTO {
-  return { adminKey: t.adminKey, title: t.title, status: t.status as TastingStatus, isDemo: t.isDemo };
+export function toMyTastingDTO(
+  t: Pick<Tasting, "adminKey" | "title" | "status" | "isDemo"> & { owner: { email: string } | null },
+): MyTastingDTO {
+  return {
+    adminKey: t.adminKey,
+    title: t.title,
+    status: t.status as TastingStatus,
+    isDemo: t.isDemo,
+    demoOwner: t.owner?.email === DEMO_ORGANIZER_EMAIL,
+  };
 }
 
 /* ---------- Гость (blind-safe) ---------- */

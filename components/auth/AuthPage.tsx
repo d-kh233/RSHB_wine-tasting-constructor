@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { showDemo } from "@/lib/demo";
 import { getSessionOrganizer } from "@/lib/session";
 import { Card } from "../ui/Card";
 import { Container } from "../ui/Container";
@@ -33,14 +34,18 @@ export async function AuthPage({ mode, next: rawNext }: { mode: "login" | "regis
         <Card raised className="mt-6">
           <AuthForm mode={mode} next={next} />
         </Card>
-        <div className="mt-6 flex items-center gap-3 text-sm text-ink-muted" aria-hidden>
-          <span className="h-px flex-1 bg-line" />
-          или
-          <span className="h-px flex-1 bg-line" />
-        </div>
-        <div className="mt-6">
-          <DemoLoginButton next={next} />
-        </div>
+        {mode === "login" && showDemo() && (
+          <>
+            <div className="mt-6 flex items-center gap-3 text-sm text-ink-muted" aria-hidden>
+              <span className="h-px flex-1 bg-line" />
+              или
+              <span className="h-px flex-1 bg-line" />
+            </div>
+            <div className="mt-6">
+              <DemoLoginButton />
+            </div>
+          </>
+        )}
       </div>
     </Container>
   );

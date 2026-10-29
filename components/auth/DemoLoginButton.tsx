@@ -6,8 +6,8 @@ import { api, errorMessage } from "@/lib/apiClient";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 
-/** Вход в общий демо-аккаунт без регистрации и пароля. next — куда перейти после входа. */
-export function DemoLoginButton({ next }: { next: string }) {
+/** Вход в общий демо-аккаунт без регистрации и пароля; после входа открывает форму создания дегустации. */
+export function DemoLoginButton({ next = "/cabinet/new", hint = true }: { next?: string; hint?: boolean }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,11 +29,13 @@ export function DemoLoginButton({ next }: { next: string }) {
   return (
     <div className="space-y-3">
       <Button variant="secondary" size="lg" block loading={pending} onClick={login}>
-        Войти как демо-организатор
+        Демо: создать дегустацию
       </Button>
-      <p className="text-center text-xs text-ink-muted">
-        Без регистрации: откроется общий демо-аккаунт с готовой дегустацией. Данные в нём видят все, кто зашёл так же.
-      </p>
+      {hint && (
+        <p className="text-center text-xs text-ink-muted">
+          Без регистрации: откроется общий демо-аккаунт. Не больше 20 дегустаций, старше суток удаляются.
+        </p>
+      )}
       {error && <Alert tone="danger">{error}</Alert>}
     </div>
   );

@@ -58,6 +58,7 @@ export function OrgCabinet({
   const router = useRouter();
   const [tasting, setTasting] = useState(initial);
   const [tab, setTab] = useState<OrgTab>(initialTab);
+  const demoOwner = myTastings?.find((t) => t.adminKey === initial.adminKey)?.demoOwner ?? false;
 
   const refresh = useCallback(async () => {
     try {
@@ -95,7 +96,7 @@ export function OrgCabinet({
       <div className="flex items-center justify-between gap-2 py-4">
         <Logo href="/" />
         <TastingSwitcher
-          current={{ adminKey: tasting.adminKey, title: tasting.title, status: tasting.status, isDemo: tasting.isDemo }}
+          current={{ adminKey: tasting.adminKey, title: tasting.title, status: tasting.status, isDemo: tasting.isDemo, demoOwner }}
           entries={myTastings}
         />
       </div>
@@ -106,7 +107,7 @@ export function OrgCabinet({
           <Badge tone={STATUS_TONE[tasting.status]}>{TASTING_STATUS_LABEL[tasting.status]}</Badge>
           <Badge tone={tasting.mode === "blind" ? "primary" : "neutral"}>{TASTING_MODE_LABEL[tasting.mode]}</Badge>
           <Badge>{SCALES[tasting.scale].label}</Badge>
-          {tasting.isDemo && <Badge tone="accent">демо</Badge>}
+          {(tasting.isDemo || demoOwner) && <Badge tone="accent">демо</Badge>}
           {tasting.startsAt && <LocalDate iso={tasting.startsAt} className="ml-1" />}
           {tasting.location && <span className="ml-1">{tasting.location}</span>}
         </div>

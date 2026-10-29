@@ -7,6 +7,8 @@ import type { Prisma, Tasting } from "@prisma/client";
 import { generateAdminKey, generateInviteCode } from "@/lib/auth";
 import {
   blindWineLabel,
+  DEMO_ACCOUNT_LIMITS,
+  DEMO_ORGANIZER_EMAIL,
   KEY_GENERATION_ATTEMPTS,
   LIMITS,
   TASTING_MODE,
@@ -97,7 +99,7 @@ export async function findPrintInfo(adminKey: string): Promise<PrintInfoDTO | nu
 export async function listByOwner(ownerId: string): Promise<MyTastingDTO[]> {
   const rows = await db.tasting.findMany({
     where: { ownerId },
-    select: { adminKey: true, title: true, status: true, isDemo: true },
+    select: { adminKey: true, title: true, status: true, isDemo: true, owner: { select: { email: true } } },
     orderBy: { createdAt: "desc" },
   });
   return rows.map(toMyTastingDTO);
@@ -105,11 +107,28 @@ export async function listByOwner(ownerId: string): Promise<MyTastingDTO[]> {
 
 /* ---------- Создание и настройки ---------- */
 
-/** ownerId — организатор, если создаёт залогиненный; без аккаунта дегустация доступна только по adminKey. */
+/**
+ * Создать дегустацию в аккаунте организатора (без входа создавать нельзя — это проверяет роут).
+ * В демо-аккаунте: сначала удаляются дегустации старше суток, потом проверяется лимит.
+ * Публичная демо-дегустация (isDemo) в очистку и лимит не входит.
+ */
 export async function create(
   input: CreateTastingInput,
-  ownerId: string | null,
+  owner: { id: string; email: string },
 ): Promise<{ id: string; adminKey: string; inviteCode: string }> {
+  const ownerId = owner.id;
+  if (owner.email === DEMO_ORGANIZER_EMAIL) {
+    const mine = { ownerId, isDemo: false };
+    await db.tasting.deleteMany({
+      where: { ...mine, createdAt: { lt: new Date(Date.now() - DEMO_ACCOUNT_LIMITS.TTL_MS) } },
+    });
+    if ((await db.tasting.count({ where: mine })) >= DEMO_ACCOUNT_LIMITS.MAX_TASTINGS) {
+      throw conflict(
+        "DEMO_LIMIT",
+        `В демо-аккаунте не больше ${DEMO_ACCOUNT_LIMITS.MAX_TASTINGS} дегустаций. Удалите лишние или зарегистрируйтесь`,
+      );
+    }
+  }
   for (let attempt = 0; attempt < KEY_GENERATION_ATTEMPTS; attempt++) {
     try {
       const tasting = await db.tasting.create({
