@@ -122,6 +122,7 @@ export function LiveControl({
                   position={tw.position}
                   label={tw.label}
                   wine={tw.wine}
+                  art={{ imageUrl: tw.wine.imageUrl }}
                   highlighted={tw.status === "open"}
                   badges={
                     <>

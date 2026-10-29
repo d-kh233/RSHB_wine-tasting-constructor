@@ -78,7 +78,12 @@ export function RatingForm({
       </p>
       <ProgressBar value={wine.position / view.wines.length} label={`Вино ${wine.position} из ${view.wines.length}`} className="mb-3" />
 
-      <WineCard position={wine.position} label={wine.label} wine={wine.wine} />
+      <WineCard
+        position={wine.position}
+        label={wine.label}
+        wine={wine.wine}
+        art={{ imageUrl: wine.imageUrl, size: "lg" }}
+      />
 
       {!canRate && (
         <Alert tone={wine.status === "pending" && view.status !== "closed" ? "info" : "warning"} className="mt-4">

@@ -16,6 +16,20 @@ import type { ScaleId } from "./scales";
 
 const iso = (d: Date | null | undefined): string | null => (d ? d.toISOString() : null);
 
+/* ---------- Фото вин ----------
+ * Фото — у вина в каталоге, одно на все дегустации. ?v= — время загрузки: новое фото получает
+ * новый URL, старое можно кэшировать навсегда. */
+
+/** Фото в каталоге и кабинете организатора. */
+function catalogImageUrl(w: Pick<Wine, "id" | "imageUpdatedAt">): string | null {
+  return w.imageUpdatedAt ? `/api/wines/${w.id}/image?v=${w.imageUpdatedAt.getTime()}` : null;
+}
+
+/** Фото для гостя — через дегустацию: сервер проверяет, раскрыта ли бутылка (wineId гость не знает). */
+function guestImageUrl(inviteCode: string, twId: string, w: Pick<Wine, "imageUpdatedAt">): string | null {
+  return w.imageUpdatedAt ? `/api/t/${inviteCode}/wines/${twId}/image?v=${w.imageUpdatedAt.getTime()}` : null;
+}
+
 /* ================================================================
  * Слепой режим: единственная проверка видимости вина для гостя.
  * Пока бутылка не раскрыта, гость получает только «Вино №N».
@@ -38,6 +52,8 @@ export interface WineDTO {
   color: WineColor | null;
   priceRub: number | null;
   isDemo: boolean;
+  /** null — фото нет, показываем шаблон. */
+  imageUrl: string | null;
 }
 
 export function toWineDTO(w: Wine): WineDTO {
@@ -52,6 +68,7 @@ export function toWineDTO(w: Wine): WineDTO {
     color: w.color as WineColor | null,
     priceRub: w.priceRub,
     isDemo: w.isDemo,
+    imageUrl: catalogImageUrl(w),
   };
 }
 
@@ -180,6 +197,8 @@ export interface GuestTastingWineDTO {
   /** true — данные вина видны гостю (открытый режим или бутылка раскрыта). */
   revealed: boolean;
   wine: GuestWineInfoDTO | null;
+  /** Фото — только вместе с данными вина (открытый режим или бутылка раскрыта); null — шаблон. */
+  imageUrl: string | null;
   /** Среднее по вину — только после раскрытия бутылки (слепой режим), иначе null. */
   result: { avg: number; count: number } | null;
 }
@@ -228,11 +247,11 @@ function toGuestWineInfo(w: Wine): GuestWineInfoDTO {
 export type WineResultById = Map<string, { avg: number; count: number }>;
 
 export function toGuestTastingWineDTO(
-  mode: string,
+  tasting: Pick<Tasting, "mode" | "inviteCode">,
   tw: GuestTastingWineSource,
   results?: WineResultById,
 ): GuestTastingWineDTO {
-  const revealed = isWineVisibleToGuest(mode, tw.revealedAt);
+  const revealed = isWineVisibleToGuest(tasting.mode, tw.revealedAt);
   return {
     id: tw.id,
     position: tw.position,
@@ -241,6 +260,7 @@ export function toGuestTastingWineDTO(
     revealed,
     // Двойная защита: даже если сервис по ошибке подгрузил вино, нераскрытое не отдаём.
     wine: revealed && tw.wine ? toGuestWineInfo(tw.wine) : null,
+    imageUrl: revealed && tw.wine ? guestImageUrl(tasting.inviteCode, tw.id, tw.wine) : null,
     result: tw.revealedAt !== null ? (results?.get(tw.id) ?? null) : null,
   };
 }
@@ -271,7 +291,7 @@ export function toGuestTastingDTO(
     notesEnabled: tasting.notesEnabled,
     status: tasting.status as TastingStatus,
     inviteCode: tasting.inviteCode,
-    wines: [...wines].sort((a, b) => a.position - b.position).map((tw) => toGuestTastingWineDTO(tasting.mode, tw, results)),
+    wines: [...wines].sort((a, b) => a.position - b.position).map((tw) => toGuestTastingWineDTO(tasting, tw, results)),
     me: guest ? { displayName: guest.displayName } : null,
     myRatings: guest ? ratings.filter((r) => r.guestId === guest.id).map(toGuestRatingDTO) : [],
   };
@@ -332,6 +352,7 @@ export interface ResultRowDTO {
   position: number;
   label: string;
   wine: GuestWineInfoDTO | null;
+  imageUrl: string | null;
   count: number;
   avg: number | null;
   avg100: number | null;

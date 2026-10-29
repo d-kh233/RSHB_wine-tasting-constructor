@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/apiClient";
 import { POLL_INTERVAL_MS, TASTING_MODE_LABEL, TASTING_STATUS_LABEL } from "@/lib/constants";
@@ -14,6 +15,7 @@ import { CopyButton } from "../ui/CopyButton";
 import { LocalDate } from "../ui/LocalDate";
 import { Logo } from "../ui/Logo";
 import { Stepper, type Step } from "../ui/Stepper";
+import { DeleteTastingButton } from "./DeleteTastingButton";
 import { LiveControl } from "./LiveControl";
 import { STATUS_TONE, TastingSwitcher } from "./MyTastings";
 import { ProgramEditor } from "./ProgramEditor";
@@ -53,6 +55,7 @@ export function OrgCabinet({
   /** Дегустация принадлежит вошедшему организатору. */
   owned: boolean;
 }) {
+  const router = useRouter();
   const [tasting, setTasting] = useState(initial);
   const [tab, setTab] = useState<OrgTab>(initialTab);
 
@@ -146,6 +149,24 @@ export function OrgCabinet({
         {tab === "settings" && (
           <div className="max-w-2xl">
             <SettingsForm tasting={tasting} onSaved={setTasting} />
+            {!tasting.isDemo && (
+              <section aria-labelledby="danger-zone" className="mt-10 border-t border-line pt-6">
+                <h2 id="danger-zone" className="text-xl">
+                  Удаление
+                </h2>
+                <p className="mb-3 mt-1 text-sm text-ink-muted">
+                  Дегустация удалится вместе с программой, гостями и оценками. Вина останутся в каталоге.
+                </p>
+                <DeleteTastingButton
+                  adminKey={tasting.adminKey}
+                  title={tasting.title}
+                  onDeleted={() => {
+                    router.replace("/");
+                    router.refresh();
+                  }}
+                />
+              </section>
+            )}
           </div>
         )}
         {tab === "program" && <ProgramEditor tasting={tasting} initialCatalog={catalog} onChange={setTasting} />}

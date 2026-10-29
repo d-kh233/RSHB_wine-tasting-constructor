@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { WINE_COLOR_LABEL, type WineColor } from "@/lib/constants";
 import { cardClass } from "./Card";
 import { cx } from "./cx";
+import { WineArt } from "./WineArt";
 
 /** Общие поля WineDTO и GuestWineInfoDTO — карточка подходит и организатору, и гостю. */
 export interface WineInfo {
@@ -31,6 +32,7 @@ export function WineCard({
   actions,
   children,
   highlighted = false,
+  art,
   className,
 }: {
   position?: number;
@@ -40,16 +42,35 @@ export function WineCard({
   actions?: ReactNode;
   children?: ReactNode;
   highlighted?: boolean;
+  /** Показать картинку вина (фото или шаблон) вместо кружка с номером. imageUrl null — шаблон. */
+  art?: { imageUrl: string | null; size?: "sm" | "lg" };
   className?: string;
 }) {
   const details = wine ? wineDetails(wine) : "";
   return (
     <div className={cx(cardClass({ compact: true, highlighted, raised: highlighted }), className)}>
       <div className="flex items-start gap-3">
-        {position !== undefined && (
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-soft font-serif text-lg text-primary">
-            {position}
+        {art ? (
+          <div className="relative shrink-0">
+            <WineArt
+              src={art.imageUrl}
+              color={wine?.color ?? null}
+              hidden={wine === null}
+              alt={wine ? wine.name : (label ?? "Вино")}
+              size={art.size}
+            />
+            {position !== undefined && (
+              <span className="absolute -left-1.5 -top-1.5 flex h-6 min-w-6 items-center justify-center rounded-full bg-primary px-1 font-serif text-sm text-ink-inverse shadow-raised">
+                {position}
+              </span>
+            )}
           </div>
+        ) : (
+          position !== undefined && (
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-soft font-serif text-lg text-primary">
+              {position}
+            </div>
+          )
         )}
         <div className="min-w-0 flex-1">
           {wine ? (

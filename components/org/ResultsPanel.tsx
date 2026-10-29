@@ -278,6 +278,7 @@ function SummaryRow({
       position={row.position}
       label={row.label}
       wine={row.wine}
+      art={{ imageUrl: row.wine.imageUrl }}
       highlighted={row.place === 1}
       badges={
         <>

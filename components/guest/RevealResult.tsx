@@ -54,7 +54,7 @@ export function RevealModal({
       <ul className="space-y-2">
         {wines.map((w) => (
           <li key={w.id}>
-            <WineCard position={w.position} label={w.label} wine={w.wine}>
+            <WineCard position={w.position} label={w.label} wine={w.wine} art={{ imageUrl: w.imageUrl, size: "lg" }}>
               <RevealLine view={view} wine={w} rating={myRating.get(w.id)} />
             </WineCard>
           </li>

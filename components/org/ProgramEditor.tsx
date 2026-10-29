@@ -13,6 +13,7 @@ import { Input } from "../ui/Field";
 import { Modal } from "../ui/Modal";
 import { WineCard } from "../ui/WineCard";
 import { WineForm } from "./WineForm";
+import { WinePhotoControl } from "./WinePhotoControl";
 
 const SEARCH_DEBOUNCE_MS = 250;
 
@@ -65,6 +66,13 @@ export function ProgramEditor({
 
   const inProgram = new Set(tasting.wines.map((w) => w.wine.id));
 
+  // Фото живёт в каталоге: после загрузки обновляем и карточку в каталоге, и программу.
+  const [savedWine, setSavedWine] = useState<WineDTO | null>(null);
+  const onWineSaved = (wine: WineDTO) => {
+    setSavedWine(wine);
+    api<OrgTastingDTO>(base).then(onChange, () => {});
+  };
+
   return (
     <div className="grid gap-8 lg:grid-cols-2">
       <section aria-labelledby="program-title" className="min-w-0">
@@ -82,8 +90,13 @@ export function ProgramEditor({
 
         {!editable && (
           <Alert tone="info" className="mt-3">
-            Дегустация уже запущена — программа заморожена.
+            Дегустация уже запущена — программа заморожена.{!tasting.isDemo && " Фото бутылок менять можно."}
           </Alert>
+        )}
+        {tasting.isDemo && (
+          <p className="mt-3 text-sm text-ink-muted">
+            В демо-кабинете фото каталога менять нельзя — его ссылка открыта всем. Создайте свою дегустацию.
+          </p>
         )}
         {error && (
           <Alert tone="danger" className="mt-3">
@@ -98,6 +111,7 @@ export function ProgramEditor({
                 position={tw.position}
                 label={tw.label}
                 wine={tw.wine}
+                art={{ imageUrl: tw.wine.imageUrl }}
                 actions={
                   editable && (
                     <>
@@ -117,7 +131,20 @@ export function ProgramEditor({
                     </>
                   )
                 }
-              />
+              >
+                {!tasting.isDemo && (
+                  <WinePhotoControl
+                    adminKey={tasting.adminKey}
+                    wine={tw.wine}
+                    onSaved={onWineSaved}
+                    hint={
+                      tasting.mode === "blind" && tw.wine.imageUrl && !tw.revealed
+                        ? "Гости увидят фото только после раскрытия бутылки."
+                        : null
+                    }
+                  />
+                )}
+              </WineCard>
             </li>
           ))}
         </ol>
@@ -136,6 +163,9 @@ export function ProgramEditor({
         inProgram={inProgram}
         editable={editable}
         busy={busy}
+        adminKey={tasting.isDemo ? null : tasting.adminKey}
+        savedWine={savedWine}
+        onWineSaved={onWineSaved}
         onAdd={addWine}
         onCreateClick={() => {
           setError(null);
@@ -162,6 +192,9 @@ function CatalogPanel({
   inProgram,
   editable,
   busy,
+  adminKey,
+  savedWine,
+  onWineSaved,
   onAdd,
   onCreateClick,
 }: {
@@ -169,6 +202,11 @@ function CatalogPanel({
   inProgram: Set<string>;
   editable: boolean;
   busy: boolean;
+  /** null — фото каталога менять нельзя (демо-кабинет). */
+  adminKey: string | null;
+  /** Последнее вино с новым фото — подменяем его в результатах поиска. */
+  savedWine: WineDTO | null;
+  onWineSaved: (wine: WineDTO) => void;
   onAdd: (wineId: string) => void;
   onCreateClick: () => void;
 }) {
@@ -177,6 +215,10 @@ function CatalogPanel({
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const firstRun = useRef(true);
+
+  useEffect(() => {
+    if (savedWine) setResults((list) => list.map((w) => (w.id === savedWine.id ? savedWine : w)));
+  }, [savedWine]);
 
   useEffect(() => {
     if (firstRun.current) {
@@ -236,6 +278,7 @@ function CatalogPanel({
             <li key={wine.id}>
               <WineCard
                 wine={wine}
+                art={{ imageUrl: wine.imageUrl }}
                 badges={wine.isDemo && <Badge tone="accent">демо</Badge>}
                 actions={
                   added ? (
@@ -248,7 +291,9 @@ function CatalogPanel({
                     )
                   )
                 }
-              />
+              >
+                {adminKey && <WinePhotoControl adminKey={adminKey} wine={wine} onSaved={onWineSaved} />}
+              </WineCard>
             </li>
           );
         })}

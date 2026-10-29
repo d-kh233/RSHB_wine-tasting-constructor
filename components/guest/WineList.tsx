@@ -71,6 +71,7 @@ export function WineList({ view, onRate }: { view: GuestTastingDTO; onRate: (tas
                     position={w.position}
                     label={w.label}
                     wine={w.wine}
+                    art={{ imageUrl: w.imageUrl }}
                     highlighted
                     actions={<span className="text-sm font-medium text-primary">Оценить →</span>}
                   />
@@ -95,6 +96,7 @@ export function WineList({ view, onRate }: { view: GuestTastingDTO; onRate: (tas
                     position={w.position}
                     label={w.label}
                     wine={w.wine}
+                    art={{ imageUrl: w.imageUrl }}
                     className={rating ? undefined : "opacity-80"}
                     badges={
                       rating ? (

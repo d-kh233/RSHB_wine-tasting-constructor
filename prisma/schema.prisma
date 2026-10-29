@@ -40,8 +40,8 @@ model Tasting {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  owner   Organizer?    @relation(fields: [ownerId], references: [id], onDelete: SetNull)
-  wines   TastingWine[]
+  owner           Organizer?       @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  wines           TastingWine[]
   guests          Guest[]
   ratings         Rating[]
   rejectedRatings RejectedRating[]
@@ -50,21 +50,23 @@ model Tasting {
 }
 
 model Wine {
-  id        String   @id @default(cuid())
-  seedKey   String?  @unique // только для идемпотентного seed
-  name      String
-  producer  String?
-  vintage   Int?
-  region    String?
-  country   String?
-  grape     String?
-  color     String? // WINE_COLOR
-  priceRub  Int?
-  isDemo    Boolean  @default(false)
-  createdAt DateTime @default(now())
+  id             String    @id @default(cuid())
+  seedKey        String?   @unique // только для идемпотентного seed
+  name           String
+  producer       String?
+  vintage        Int?
+  region         String?
+  country        String?
+  grape          String?
+  color          String? // WINE_COLOR
+  priceRub       Int?
+  isDemo         Boolean   @default(false)
+  imageUpdatedAt DateTime? // null — фото нет, показываем шаблон; иначе — версия для ?v= в URL
+  createdAt      DateTime  @default(now())
 
   tastingWines  TastingWine[]
   publicRatings PublicRating[]
+  image         WineImage?
 
   @@index([name])
 }
@@ -118,6 +120,17 @@ model Rating {
   // Антидубли: один гость — одна оценка на вино
   @@unique([guestId, tastingWineId])
   @@index([tastingId])
+}
+
+/// Фото вина в каталоге — одно на вино, видно во всех дегустациях с ним.
+/// Отдельная таблица — чтобы байты не читались вместе с каталогом и программой.
+model WineImage {
+  wineId    String   @id
+  mime      String // image/jpeg | image/png | image/webp — по сигнатуре файла
+  data      Bytes
+  updatedAt DateTime @updatedAt
+
+  wine Wine @relation(fields: [wineId], references: [id], onDelete: Cascade)
 }
 
 /// Журнал отброшенных попыток оценить — для таблицы «Отброшенные оценки» в «Итогах».

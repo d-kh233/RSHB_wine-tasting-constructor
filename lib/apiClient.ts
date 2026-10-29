@@ -13,14 +13,15 @@ export class ApiError extends Error {
   }
 }
 
-export async function api<T>(url: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
-  const hasBody = init.body !== undefined;
+/** body — JSON; blob — сырые байты (загрузка фото), Content-Type берётся из blob.type. */
+export async function api<T>(url: string, init: { method?: string; body?: unknown; blob?: Blob } = {}): Promise<T> {
+  const hasBody = init.body !== undefined || init.blob !== undefined;
   let res: Response;
   try {
     res = await fetch(url, {
       method: init.method ?? (hasBody ? "POST" : "GET"),
-      headers: hasBody ? { "Content-Type": "application/json" } : undefined,
-      body: hasBody ? JSON.stringify(init.body) : undefined,
+      headers: init.blob ? { "Content-Type": init.blob.type } : hasBody ? { "Content-Type": "application/json" } : undefined,
+      body: init.blob ?? (hasBody ? JSON.stringify(init.body) : undefined),
       cache: "no-store",
     });
   } catch {

@@ -197,6 +197,25 @@ export async function reorder(adminKey: string, orderedIds: string[]): Promise<O
   return loadOrgDTO(tasting.id);
 }
 
+/* ---------- Удаление ---------- */
+
+/**
+ * Удаление дегустации со всей программой, гостями и оценками (cascade). Оценки, уже переданные
+ * в «Народный рейтинг», остаются: рейтинг — отдельная система и хранит их без ссылки на дегустацию.
+ * Демо-дегустацию удалить нельзя: её ссылка публичная.
+ */
+export async function remove(adminKey: string): Promise<void> {
+  const tasting = await requireTasting(adminKey);
+  if (tasting.isDemo) throw conflict("DEMO_TASTING", "Демо-дегустацию удалить нельзя");
+  await db.tasting.delete({ where: { id: tasting.id } });
+}
+
+/** Фото в каталог можно загружать из кабинета любой дегустации, кроме демо (её ссылка публичная). */
+export async function requireCatalogEditor(adminKey: string): Promise<void> {
+  const tasting = await requireTasting(adminKey);
+  if (tasting.isDemo) throw conflict("DEMO_TASTING", "В демо-кабинете фото каталога менять нельзя");
+}
+
 /* ---------- Переходы статусов ---------- */
 
 const ACTION_VERB: Record<TastingAction, string> = {

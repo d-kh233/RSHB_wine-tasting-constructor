@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { TASTING_STATUS_LABEL } from "@/lib/constants";
 import type { MyTastingDTO } from "@/lib/dto";
 import { LogoutButton } from "../auth/LogoutButton";
 import { Badge, type BadgeTone } from "../ui/Badge";
 import { cx } from "../ui/cx";
+import { DeleteTastingButton } from "./DeleteTastingButton";
 
 export const STATUS_TONE: Record<MyTastingDTO["status"], BadgeTone> = {
   draft: "neutral",
@@ -19,6 +21,7 @@ const linkClass = "font-medium text-primary underline-offset-4 hover:underline";
 
 /** Список дегустаций на главной: дегустации аккаунта; без входа — приглашение войти. */
 export function MyTastingsList({ email, entries }: { email: string | null; entries: MyTastingDTO[] }) {
+  const router = useRouter();
   return (
     <section aria-labelledby="my-tastings">
       <h2 id="my-tastings" className="text-xl">
@@ -51,14 +54,24 @@ export function MyTastingsList({ email, entries }: { email: string | null; entri
           ) : (
             <ul className="mt-3 divide-y divide-line overflow-hidden rounded-lg border border-line bg-surface">
               {entries.map((e) => (
-                <li key={e.adminKey}>
-                  <Link href={`/org/${e.adminKey}`} className="block px-4 py-3 hover:bg-surface-muted">
+                <li key={e.adminKey} className="flex items-center gap-2 pr-3 hover:bg-surface-muted">
+                  <Link href={`/org/${e.adminKey}`} className="block min-w-0 flex-1 px-4 py-3">
                     <span className="block truncate font-medium text-ink">{e.title}</span>
                     <span className="mt-1 flex flex-wrap gap-1.5">
                       <Badge tone={STATUS_TONE[e.status]}>{TASTING_STATUS_LABEL[e.status]}</Badge>
                       {e.isDemo && <Badge tone="accent">демо</Badge>}
                     </span>
                   </Link>
+                  {!e.isDemo && (
+                    <DeleteTastingButton
+                      adminKey={e.adminKey}
+                      title={e.title}
+                      size="sm"
+                      variant="ghost"
+                      label="Удалить"
+                      onDeleted={() => router.refresh()}
+                    />
+                  )}
                 </li>
               ))}
             </ul>

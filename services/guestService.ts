@@ -25,6 +25,7 @@ import {
   type WineResultById,
 } from "@/lib/dto";
 import { AppError, conflict, isUniqueViolation, notFound, unauthorized, unprocessable } from "@/lib/http";
+import type { ImageMime } from "@/lib/image";
 import { formatScaleValue, getScale, isValidValue, type ScaleId } from "@/lib/scales";
 import { groupBy, rankByScore, wineStats } from "@/lib/stats";
 import type { RateInput } from "@/lib/validation";
@@ -215,6 +216,24 @@ async function logRejected(tastingId: string, guestId: string, input: RateInput,
   });
 }
 
+/* ---------- Фото вина ---------- */
+
+/**
+ * Фото для гостя — по тому же правилу, что и данные вина: в слепом режиме только после раскрытия.
+ * Ссылку на фото нераскрытого вина гость не получает, а прямой запрос даёт 404.
+ */
+export async function getImage(inviteCode: string, tastingWineId: string): Promise<{ mime: ImageMime; data: Uint8Array }> {
+  const tasting = await requireTasting(inviteCode);
+  const tw = await db.tastingWine.findFirst({
+    where: { id: tastingWineId, tastingId: tasting.id },
+    select: { wineId: true, revealedAt: true },
+  });
+  if (!tw || !isWineVisibleToGuest(tasting.mode, tw.revealedAt)) throw notFound("Фото нет");
+  const image = await db.wineImage.findUnique({ where: { wineId: tw.wineId } });
+  if (!image) throw notFound("Фото нет");
+  return { mime: image.mime as ImageMime, data: image.data };
+}
+
 /* ---------- Итоги (после публикации) ---------- */
 
 /** Публичные итоги: места, средние и — если гость вошёл — его оценки. Только в `published`. */
@@ -235,11 +254,13 @@ export async function getResults(inviteCode: string, token: string | null): Prom
   const rows = program.map((tw) => {
     const own = byWine.get(tw.id) ?? [];
     const stats = wineStats(tasting.scale, own.map((r) => r.value));
+    const guestWine = toGuestTastingWineDTO(tasting, tw);
     return {
       tastingWineId: tw.id,
       position: tw.position,
       label: blindWineLabel(tw.position),
-      wine: toGuestTastingWineDTO(tasting.mode, tw).wine,
+      wine: guestWine.wine,
+      imageUrl: guestWine.imageUrl,
       count: stats.count,
       avg: stats.avg,
       avg100: stats.avg100,

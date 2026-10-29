@@ -48,6 +48,7 @@ export function ResultsView({ results, inviteCode }: { results: PublicResultsDTO
                 position={row.position}
                 label={row.label}
                 wine={row.wine}
+                art={{ imageUrl: row.imageUrl }}
                 highlighted={row.place === 1}
                 badges={
                   row.place !== null ? (

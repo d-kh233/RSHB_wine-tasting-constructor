@@ -19,3 +19,11 @@ export async function PATCH(req: Request, { params }: Ctx) {
     return NextResponse.json(await tastingService.update(k, input));
   });
 }
+
+export async function DELETE(_req: Request, { params }: Ctx) {
+  return handleRoute(async () => {
+    const { k } = await params;
+    await tastingService.remove(k);
+    return new Response(null, { status: 204 });
+  });
+}
